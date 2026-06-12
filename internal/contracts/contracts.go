@@ -146,3 +146,57 @@ type SynthesizeSpeechOutput struct {
 	// DurationEstimate is a human-readable approximation (e.g. "~3 min").
 	DurationEstimate string `json:"durationEstimate"`
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// generate_study_guide
+// ──────────────────────────────────────────────────────────────────────────────
+
+// StudyGuideSection is a single section of the generated study guide.
+type StudyGuideSection struct {
+	// Title is the section heading.
+	Title string `json:"title"`
+	// Content is the detailed explanation text.
+	Content string `json:"content"`
+}
+
+// GenerateStudyGuideInput is the typed input for the generate_study_guide tool.
+type GenerateStudyGuideInput struct {
+	// Content is the raw study material to transform into a deep study guide. Required.
+	Content string `json:"content"`
+	// Language is the ISO 639-1 code for the output (e.g. "en", "es"). Required.
+	Language string `json:"language"`
+	// Difficulty is the target academic level: "undergraduate", "graduate",
+	// "masters", or "phd". Controls depth and detail level. Optional; defaults to "graduate".
+	Difficulty string `json:"difficulty,omitempty"`
+	// DurationTarget controls approximate audio output length: "short" (~5 min),
+	// "medium" (~15 min), or "long" (~30 min). Optional; defaults to "medium".
+	DurationTarget string `json:"durationTarget,omitempty"`
+	// Voice is the TTS voice identifier. Optional.
+	Voice string `json:"voice,omitempty"`
+	// PreviewOnly when true returns the study guide text without audio synthesis.
+	// Optional; defaults to false.
+	PreviewOnly bool `json:"previewOnly,omitempty"`
+}
+
+// GenerateStudyGuideOutput is the typed output for the generate_study_guide tool.
+type GenerateStudyGuideOutput struct {
+	// Kind discriminates the output type for the UI dispatcher.
+	Kind string `json:"kind"`
+	// Script is the full narrated study guide text.
+	Script string `json:"script"`
+	// Sections are the structured sections extracted from the script.
+	Sections []StudyGuideSection `json:"sections"`
+	// OutputPath is the absolute path to the generated audio file.
+	// Empty when PreviewOnly is true.
+	OutputPath string `json:"outputPath,omitempty"`
+	// WordCount is the total word count.
+	WordCount int `json:"wordCount"`
+	// DurationEstimate is a human-readable approximation (e.g. "~15 min").
+	DurationEstimate string `json:"durationEstimate"`
+	// Language echoes the requested language code.
+	Language string `json:"language"`
+	// Difficulty echoes the requested difficulty level.
+	Difficulty string `json:"difficulty"`
+	// PreviewOnly echoes the preview flag.
+	PreviewOnly bool `json:"previewOnly"`
+}

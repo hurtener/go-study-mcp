@@ -221,3 +221,90 @@ export interface SynthesizeSpeechOutput {
    */
   durationEstimate: string;
 }
+/**
+ * StudyGuideSection is a single section of the generated study guide.
+ */
+export interface StudyGuideSection {
+  /**
+   * Title is the section heading.
+   */
+  title: string;
+  /**
+   * Content is the detailed explanation text.
+   */
+  content: string;
+}
+/**
+ * GenerateStudyGuideInput is the typed input for the generate_study_guide tool.
+ */
+export interface GenerateStudyGuideInput {
+  /**
+   * Content is the raw study material to transform into a deep study guide. Required.
+   */
+  content: string;
+  /**
+   * Language is the ISO 639-1 code for the output (e.g. "en", "es"). Required.
+   */
+  language: string;
+  /**
+   * Difficulty is the target academic level: "undergraduate", "graduate",
+   * "masters", or "phd". Controls depth and detail level. Optional; defaults to "graduate".
+   */
+  difficulty?: string;
+  /**
+   * DurationTarget controls approximate audio output length: "short" (~5 min),
+   * "medium" (~15 min), or "long" (~30 min). Optional; defaults to "medium".
+   */
+  durationTarget?: string;
+  /**
+   * Voice is the TTS voice identifier. Optional.
+   */
+  voice?: string;
+  /**
+   * PreviewOnly when true returns the study guide text without audio synthesis.
+   * Optional; defaults to false.
+   */
+  previewOnly?: boolean;
+}
+/**
+ * GenerateStudyGuideOutput is the typed output for the generate_study_guide tool.
+ */
+export interface GenerateStudyGuideOutput {
+  /**
+   * Kind discriminates the output type for the UI dispatcher.
+   */
+  kind: string;
+  /**
+   * Script is the full narrated study guide text.
+   */
+  script: string;
+  /**
+   * Sections are the structured sections extracted from the script.
+   */
+  sections: StudyGuideSection[];
+  /**
+   * OutputPath is the absolute path to the generated audio file.
+   * Empty when PreviewOnly is true.
+   */
+  outputPath?: string;
+  /**
+   * WordCount is the total word count.
+   */
+  wordCount: number /* int */;
+  /**
+   * DurationEstimate is a human-readable approximation (e.g. "~15 min").
+   */
+  durationEstimate: string;
+  /**
+   * Language echoes the requested language code.
+   */
+  language: string;
+  /**
+   * Difficulty echoes the requested difficulty level.
+   */
+  difficulty: string;
+  /**
+   * PreviewOnly echoes the preview flag.
+   */
+  previewOnly: boolean;
+}

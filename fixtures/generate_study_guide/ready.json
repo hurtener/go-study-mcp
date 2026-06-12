@@ -1,0 +1,20 @@
+{
+  "kind": "study_guide",
+  "script": "[warm] Sistema inmune cutáneo. Guía de estudio extendida, parte uno. Hoy vamos a meternos en cómo nos defiende el cuerpo y, sobre todo, en cómo la piel deja de ser solamente una cubierta para convertirse en un órgano inmunológico activo.\n\n[thoughtful] Antes de hablar de la piel en sí, necesitamos tener muy claro el panorama general de la inmunidad. Porque si entendés primero la lógica del sistema inmune completo, después la piel te va a cerrar mucho más fácil.\n\n[normal voice] La inmunidad innata es la respuesta rápida. Pensala como la primera línea, la que actúa aproximadamente en los primeros siete días. ¿Quiénes participan acá? El macrófago, la célula dendrítica, el mastocito.\n\n[pause]\n\n[curious] ¿Y por qué primero la innata y después la adaptativa? Porque la innata es veloz, está lista para actuar de inmediato, pero es más general.\n\n[emphasizing] La adaptativa deja células de memoria. Esto significa que si el mismo patógeno vuelve a aparecer, la respuesta secundaria es más rápida e intensa.",
+  "sections": [
+    {
+      "title": "Sistema inmune cutáneo. Guía de estudio extendida, parte uno.",
+      "content": "[warm] Sistema inmune cutáneo. Guía de estudio extendida, parte uno."
+    },
+    {
+      "title": "Inmunidad innata vs adaptativa",
+      "content": "[thoughtful] Antes de hablar de la piel en sí, necesitamos tener muy claro el panorama general de la inmunidad."
+    }
+  ],
+  "outputPath": "/tmp/study_guide-abc123.mp3",
+  "wordCount": 127,
+  "durationEstimate": "~1 min",
+  "language": "es",
+  "difficulty": "graduate",
+  "previewOnly": false
+}

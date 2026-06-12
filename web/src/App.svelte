@@ -4,6 +4,7 @@
   import PodcastView from './lib/components/PodcastView.svelte';
   import FlashcardView from './lib/components/FlashcardView.svelte';
   import SynthesizeView from './lib/components/SynthesizeView.svelte';
+  import StudyGuideView from './lib/components/StudyGuideView.svelte';
   import AudioPlayer from './lib/components/AudioPlayer.svelte';
 
   let activeTab = $state('podcast');
@@ -16,6 +17,7 @@
 
   const tabs = [
     { id: 'podcast', label: 'Podcast', icon: '🎙️' },
+    { id: 'study_guide', label: 'Study Guide', icon: '📖' },
     { id: 'flashcards', label: 'Flashcards', icon: '🃏' },
     { id: 'synthesize', label: 'Synthesize', icon: '🔊' },
   ];
@@ -105,6 +107,8 @@
       <main class="content">
         {#if activeTab === 'podcast'}
           <PodcastView onGenerating={handleGenerating} />
+        {:else if activeTab === 'study_guide'}
+          <StudyGuideView onGenerating={handleGenerating} />
         {:else if activeTab === 'flashcards'}
           <FlashcardView onGenerating={handleGenerating} />
         {:else if activeTab === 'synthesize'}

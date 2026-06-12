@@ -16,6 +16,7 @@ import (
 
 	"github.com/hurtener/dockyard/runtime/tool"
 
+	"github.com/hurtener/go-study-mcp/internal/audio"
 	"github.com/hurtener/go-study-mcp/internal/contracts"
 	"github.com/hurtener/go-study-mcp/internal/prompts"
 )
@@ -82,7 +83,8 @@ func (a *OpenRouterAccount) GetConfigForProvider(provider schemas.ModelProvider)
 		}
 		return &schemas.ProviderConfig{
 			NetworkConfig: schemas.NetworkConfig{
-				BaseURL: baseURL,
+				BaseURL:                        baseURL,
+				DefaultRequestTimeoutInSeconds: 120,
 			},
 			ConcurrencyAndBufferSize: schemas.DefaultConcurrencyAndBufferSize,
 		}, nil
@@ -331,7 +333,18 @@ func SynthesizeSpeech(_ context.Context, in contracts.SynthesizeSpeechInput) (to
 	}
 
 	if response != nil && len(response.Audio) > 0 {
-		if err := os.WriteFile(in.OutputPath, response.Audio, 0644); err != nil {
+		// Convert PCM to MP3 if needed
+		audioData := response.Audio
+		if format == "pcm" {
+			if mp3Data, err := audio.PCMToMP3(response.Audio, defaultSampleRate()); err == nil {
+				audioData = mp3Data
+				// Update output path to .mp3
+				if strings.HasSuffix(in.OutputPath, ".raw") {
+					in.OutputPath = in.OutputPath[:len(in.OutputPath)-4] + ".mp3"
+				}
+			}
+		}
+		if err := os.WriteFile(in.OutputPath, audioData, 0644); err != nil {
 			return tool.Result[contracts.SynthesizeSpeechOutput]{}, fmt.Errorf("failed to write audio: %w", err)
 		}
 	}
@@ -343,6 +356,102 @@ func SynthesizeSpeech(_ context.Context, in contracts.SynthesizeSpeechInput) (to
 			OutputPath:       in.OutputPath,
 			CharacterCount:   charCount,
 			DurationEstimate: estimate,
+		},
+	}, nil
+}
+
+// GenerateStudyGuide is the handler for the generate_study_guide tool.
+func GenerateStudyGuide(_ context.Context, in contracts.GenerateStudyGuideInput) (tool.Result[contracts.GenerateStudyGuideOutput], error) {
+	lang := normalizeLang(in.Language)
+	if lang == "" {
+		lang = "en"
+	}
+	difficulty := in.Difficulty
+	if difficulty == "" {
+		difficulty = "graduate"
+	}
+
+	wordTarget := studyGuideWordTarget(in.DurationTarget)
+
+	system, user := prompts.StudyGuideScript(prompts.StudyGuideParams{
+		Language:       lang,
+		Difficulty:     difficulty,
+		DurationTarget: in.DurationTarget,
+		WordTarget:     wordTarget,
+		Content:        in.Content,
+	})
+
+	var script string
+	if SkipLLM || bifrostClient == nil {
+		script = fmt.Sprintf("[SYSTEM]\n%s\n\n[USER]\n%s", system, user)
+	} else {
+		response, bfErr := bifrostClient.ChatCompletionRequest(
+			schemas.NewBifrostContext(context.Background(), schemas.NoDeadline),
+			&schemas.BifrostChatRequest{
+				Provider: schemas.OpenAI,
+				Model:    chatModel(),
+				Input: []schemas.ChatMessage{
+					{
+						Role: schemas.ChatMessageRoleSystem,
+						Content: &schemas.ChatMessageContent{
+							ContentStr: schemas.Ptr(system),
+						},
+					},
+					{
+						Role: schemas.ChatMessageRoleUser,
+						Content: &schemas.ChatMessageContent{
+							ContentStr: schemas.Ptr(user),
+						},
+					},
+				},
+			},
+		)
+		if bfErr != nil {
+			return tool.Result[contracts.GenerateStudyGuideOutput]{}, fmt.Errorf("llm call failed: %s", bfErr.GetErrorString())
+		}
+		if response != nil && response.Choices != nil && len(response.Choices) > 0 && response.Choices[0].Message.Content.ContentStr != nil {
+			script = *response.Choices[0].Message.Content.ContentStr
+		} else {
+			script = "[No response from LLM]"
+		}
+	}
+
+	wordCount := len(strings.Fields(script))
+	sections := extractSections(script)
+
+	if in.PreviewOnly {
+		return tool.Result[contracts.GenerateStudyGuideOutput]{
+			Text: script,
+			Structured: contracts.GenerateStudyGuideOutput{
+				Kind:             "study_guide",
+				Script:           script,
+				Sections:         sections,
+				WordCount:        wordCount,
+				DurationEstimate: estimateStudyGuideDuration(wordCount),
+				Language:         lang,
+				Difficulty:       difficulty,
+				PreviewOnly:      true,
+			},
+		}, nil
+	}
+
+	audioPath, err := synthesizeToDisk(script, in.Voice, "study_guide")
+	if err != nil {
+		return tool.Result[contracts.GenerateStudyGuideOutput]{}, fmt.Errorf("tts failed: %w", err)
+	}
+
+	return tool.Result[contracts.GenerateStudyGuideOutput]{
+		Text: script,
+		Structured: contracts.GenerateStudyGuideOutput{
+			Kind:             "study_guide",
+			Script:           script,
+			Sections:         sections,
+			OutputPath:       audioPath,
+			WordCount:        wordCount,
+			DurationEstimate: estimateStudyGuideDuration(wordCount),
+			Language:         lang,
+			Difficulty:       difficulty,
+			PreviewOnly:      false,
 		},
 	}, nil
 }
@@ -382,6 +491,73 @@ func estimateDuration(words int) string {
 		return "~1 min"
 	}
 	return fmt.Sprintf("~%d min", minutes)
+}
+
+func studyGuideWordTarget(d string) int {
+	switch d {
+	case "short":
+		return 2000
+	case "long":
+		return 8000
+	default:
+		return 4500
+	}
+}
+
+func estimateStudyGuideDuration(words int) string {
+	minutes := words / 130 // study guides are slower-paced
+	if minutes < 1 {
+		return "~1 min"
+	}
+	return fmt.Sprintf("~%d min", minutes)
+}
+
+func extractSections(script string) []contracts.StudyGuideSection {
+	var sections []contracts.StudyGuideSection
+	lines := strings.Split(script, "\n")
+	var currentTitle string
+	var currentContent strings.Builder
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		// Detect section headers (lines starting with # or [pause] followed by text)
+		if strings.HasPrefix(trimmed, "# ") {
+			if currentTitle != "" {
+				sections = append(sections, contracts.StudyGuideSection{
+					Title:   currentTitle,
+					Content: strings.TrimSpace(currentContent.String()),
+				})
+				currentContent.Reset()
+			}
+			currentTitle = strings.TrimPrefix(trimmed, "# ")
+		} else if currentTitle == "" && len(trimmed) > 0 {
+			currentTitle = trimmed
+		} else {
+			if currentContent.Len() > 0 {
+				currentContent.WriteString("\n")
+			}
+			currentContent.WriteString(line)
+		}
+	}
+
+	if currentTitle != "" {
+		sections = append(sections, contracts.StudyGuideSection{
+			Title:   currentTitle,
+			Content: strings.TrimSpace(currentContent.String()),
+		})
+	}
+
+	// If no sections found, return whole script as one section
+	if len(sections) == 0 {
+		sections = []contracts.StudyGuideSection{
+			{Title: "Study Guide", Content: script},
+		}
+	}
+
+	return sections
 }
 
 func formatCardsText(cards []contracts.FlashCard) string {
@@ -448,6 +624,16 @@ func ttsModel() string {
 	return "tts-1"
 }
 
+func defaultSampleRate() int {
+	if rate := os.Getenv("STUDYAUDIO_SAMPLE_RATE"); rate != "" {
+		var r int
+		if _, err := fmt.Sscanf(rate, "%d", &r); err == nil && r > 0 {
+			return r
+		}
+	}
+	return 24000
+}
+
 func voiceID(voice string) string {
 	if voice != "" {
 		return voice
@@ -499,11 +685,17 @@ func synthesizeToDisk(text, voice, prefix string) (string, error) {
 		return "", fmt.Errorf("no audio returned")
 	}
 
-	// For PCM, we need to wrap in a WAV header or save as raw
-	// For now, save with appropriate extension
+	// Convert PCM to MP3 if needed
+	audioData := response.Audio
 	ext := "mp3"
 	if responseFormat == "pcm" {
-		ext = "raw" // Raw PCM - caller can convert
+		mp3Data, err := audio.PCMToMP3(response.Audio, defaultSampleRate())
+		if err != nil {
+			// Fallback to raw if conversion fails
+			ext = "raw"
+		} else {
+			audioData = mp3Data
+		}
 	}
 
 	tmpFile, err := os.CreateTemp("", fmt.Sprintf("%s-*.%s", prefix, ext))
@@ -512,7 +704,7 @@ func synthesizeToDisk(text, voice, prefix string) (string, error) {
 	}
 	defer tmpFile.Close()
 
-	if _, err := tmpFile.Write(response.Audio); err != nil {
+	if _, err := tmpFile.Write(audioData); err != nil {
 		return "", err
 	}
 

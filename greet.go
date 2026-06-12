@@ -34,5 +34,13 @@ func registerTools(srv *server.Server) error {
 		return err
 	}
 
+	if err := tool.New[contracts.GenerateStudyGuideInput, contracts.GenerateStudyGuideOutput]("generate_study_guide").
+		Describe("Generate a deep, expert-level narrated study guide with expressive audio tags for multi-tonal TTS.").
+		UI(appName).
+		Handler(handlers.GenerateStudyGuide).
+		Register(srv); err != nil {
+		return err
+	}
+
 	return nil
 }
