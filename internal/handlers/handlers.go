@@ -11,7 +11,8 @@ import (
 	"os"
 	"strings"
 
-	openai "github.com/sashabaranov/go-openai"
+	bifrost "github.com/maximhq/bifrost/core"
+	"github.com/maximhq/bifrost/core/schemas"
 
 	"github.com/hurtener/dockyard/runtime/tool"
 
@@ -19,26 +20,73 @@ import (
 	"github.com/hurtener/go-study-mcp/internal/prompts"
 )
 
-// llmClient is the shared OpenAI-compatible client.
-// Configure via OPENAI_API_KEY and OPENAI_BASE_URL (for Bifrost/gateways).
-var llmClient *openai.Client
+// bifrostClient is the shared Bifrost instance.
+var bifrostClient *bifrost.Bifrost
 
 // SkipLLM is a test flag that skips actual LLM calls.
 var SkipLLM bool
 
 func init() {
-	apiKey := os.Getenv("OPENAI_API_KEY")
+	// Check if we have any API key before trying to init Bifrost
+	apiKey := os.Getenv("OPENROUTER_API_KEY")
 	if apiKey == "" {
-		apiKey = "sk-placeholder"
+		apiKey = os.Getenv("OPENAI_API_KEY")
+	}
+	if apiKey == "" || apiKey == "sk-test" || apiKey == "sk-placeholder" {
 		SkipLLM = true
+		return
 	}
 
-	cfg := openai.DefaultConfig(apiKey)
-	if baseURL := os.Getenv("OPENAI_BASE_URL"); baseURL != "" {
-		cfg.BaseURL = baseURL
+	client, err := bifrost.Init(context.Background(), schemas.BifrostConfig{
+		Account: &OpenRouterAccount{},
+	})
+	if err != nil {
+		SkipLLM = true
+		return
 	}
+	bifrostClient = client
+}
 
-	llmClient = openai.NewClientWithConfig(cfg)
+// OpenRouterAccount implements the Bifrost Account interface for OpenRouter.
+type OpenRouterAccount struct{}
+
+func (a *OpenRouterAccount) GetConfiguredProviders() ([]schemas.ModelProvider, error) {
+	return []schemas.ModelProvider{schemas.OpenAI}, nil
+}
+
+func (a *OpenRouterAccount) GetKeysForProvider(ctx context.Context, provider schemas.ModelProvider) ([]schemas.Key, error) {
+	if provider == schemas.OpenAI {
+		apiKey := os.Getenv("OPENROUTER_API_KEY")
+		if apiKey == "" {
+			apiKey = os.Getenv("OPENAI_API_KEY")
+		}
+		if apiKey == "" {
+			SkipLLM = true
+			return nil, fmt.Errorf("no API key found: set OPENROUTER_API_KEY or OPENAI_API_KEY")
+		}
+		return []schemas.Key{{
+			Value:   *schemas.NewEnvVar(apiKey),
+			Models:  schemas.WhiteList{"*"},
+			Weight:  1.0,
+		}}, nil
+	}
+	return nil, fmt.Errorf("provider %s not supported", provider)
+}
+
+func (a *OpenRouterAccount) GetConfigForProvider(provider schemas.ModelProvider) (*schemas.ProviderConfig, error) {
+	if provider == schemas.OpenAI {
+		baseURL := os.Getenv("OPENROUTER_BASE_URL")
+		if baseURL == "" {
+			baseURL = "https://openrouter.ai/api/v1"
+		}
+		return &schemas.ProviderConfig{
+			NetworkConfig: schemas.NetworkConfig{
+				BaseURL: baseURL,
+			},
+			ConcurrencyAndBufferSize: schemas.DefaultConcurrencyAndBufferSize,
+		}, nil
+	}
+	return nil, fmt.Errorf("provider %s not supported", provider)
 }
 
 // GeneratePodcast is the handler for the generate_podcast tool.
@@ -57,51 +105,71 @@ func GeneratePodcast(_ context.Context, in contracts.GeneratePodcastInput) (tool
 	})
 
 	var script string
-	if SkipLLM {
-		// In test mode, return the prompts as the script
+	if SkipLLM || bifrostClient == nil {
 		script = fmt.Sprintf("[SYSTEM]\n%s\n\n[USER]\n%s", system, user)
 	} else {
-		resp, err := llmClient.CreateChatCompletion(context.Background(), openai.ChatCompletionRequest{
-			Model: modelName(),
-			Messages: []openai.ChatCompletionMessage{
-				{Role: openai.ChatMessageRoleSystem, Content: system},
-				{Role: openai.ChatMessageRoleUser, Content: user},
+		response, bfErr := bifrostClient.ChatCompletionRequest(
+			schemas.NewBifrostContext(context.Background(), schemas.NoDeadline),
+			&schemas.BifrostChatRequest{
+				Provider: schemas.OpenAI,
+				Model:    chatModel(),
+				Input: []schemas.ChatMessage{
+					{
+						Role: schemas.ChatMessageRoleSystem,
+						Content: &schemas.ChatMessageContent{
+							ContentStr: schemas.Ptr(system),
+						},
+					},
+					{
+						Role: schemas.ChatMessageRoleUser,
+						Content: &schemas.ChatMessageContent{
+							ContentStr: schemas.Ptr(user),
+						},
+					},
+				},
 			},
-			Temperature: 0.7,
-			MaxTokens:   wordTarget * 2,
-		})
-		if err != nil {
-			return tool.Result[contracts.GeneratePodcastOutput]{}, fmt.Errorf("llm call failed: %w", err)
+		)
+		if bfErr != nil {
+			return tool.Result[contracts.GeneratePodcastOutput]{}, fmt.Errorf("llm call failed: %s", bfErr.GetErrorString())
 		}
-		script = resp.Choices[0].Message.Content
+		if response != nil && response.Choices != nil && len(response.Choices) > 0 && response.Choices[0].Message.Content.ContentStr != nil {
+			script = *response.Choices[0].Message.Content.ContentStr
+		} else {
+			script = "[No response from LLM]"
+		}
 	}
+
 	wordCount := len(strings.Fields(script))
 
 	if in.PreviewOnly {
 		return tool.Result[contracts.GeneratePodcastOutput]{
 			Text: script,
 			Structured: contracts.GeneratePodcastOutput{
-				Kind:              "podcast",
-				Script:            script,
-				WordCount:         wordCount,
-				DurationEstimate:  estimateDuration(wordCount),
-				Language:          lang,
-				PreviewOnly:       true,
+				Kind:             "podcast",
+				Script:           script,
+				WordCount:        wordCount,
+				DurationEstimate: estimateDuration(wordCount),
+				Language:         lang,
+				PreviewOnly:      true,
 			},
 		}, nil
 	}
 
-	// TODO: TTS synthesis via Bifrost SpeechRequest
-	// For now, return preview-only output
+	audioPath, err := synthesizeToDisk(script, in.Voice, "podcast")
+	if err != nil {
+		return tool.Result[contracts.GeneratePodcastOutput]{}, fmt.Errorf("tts failed: %w", err)
+	}
+
 	return tool.Result[contracts.GeneratePodcastOutput]{
 		Text: script,
 		Structured: contracts.GeneratePodcastOutput{
-			Kind:              "podcast",
-			Script:            script,
-			WordCount:         wordCount,
-			DurationEstimate:  estimateDuration(wordCount),
-			Language:          lang,
-			PreviewOnly:       true,
+			Kind:             "podcast",
+			Script:           script,
+			OutputPath:       audioPath,
+			WordCount:        wordCount,
+			DurationEstimate: estimateDuration(wordCount),
+			Language:         lang,
+			PreviewOnly:      false,
 		},
 	}, nil
 }
@@ -125,24 +193,38 @@ func GenerateFlashcards(_ context.Context, in contracts.GenerateFlashcardsInput)
 			Content:    in.Content,
 		})
 
-		if SkipLLM {
-			// In test mode, return empty cards
+		if SkipLLM || bifrostClient == nil {
 			cards = []contracts.FlashCard{}
 		} else {
-			resp, err := llmClient.CreateChatCompletion(context.Background(), openai.ChatCompletionRequest{
-				Model: modelName(),
-				Messages: []openai.ChatCompletionMessage{
-					{Role: openai.ChatMessageRoleSystem, Content: system},
-					{Role: openai.ChatMessageRoleUser, Content: user},
+			response, bfErr := bifrostClient.ChatCompletionRequest(
+				schemas.NewBifrostContext(context.Background(), schemas.NoDeadline),
+				&schemas.BifrostChatRequest{
+					Provider: schemas.OpenAI,
+					Model:    chatModel(),
+					Input: []schemas.ChatMessage{
+						{
+							Role: schemas.ChatMessageRoleSystem,
+							Content: &schemas.ChatMessageContent{
+								ContentStr: schemas.Ptr(system),
+							},
+						},
+						{
+							Role: schemas.ChatMessageRoleUser,
+							Content: &schemas.ChatMessageContent{
+								ContentStr: schemas.Ptr(user),
+							},
+						},
+					},
 				},
-				Temperature: 0.3,
-				MaxTokens:   4096,
-			})
-			if err != nil {
-				return tool.Result[contracts.GenerateFlashcardsOutput]{}, fmt.Errorf("llm call failed: %w", err)
+			)
+			if bfErr != nil {
+				return tool.Result[contracts.GenerateFlashcardsOutput]{}, fmt.Errorf("llm call failed: %s", bfErr.GetErrorString())
 			}
 
-			raw := resp.Choices[0].Message.Content
+			raw := ""
+			if response != nil && response.Choices != nil && len(response.Choices) > 0 && response.Choices[0].Message.Content.ContentStr != nil {
+				raw = *response.Choices[0].Message.Content.ContentStr
+			}
 			raw = strings.TrimPrefix(raw, "```json")
 			raw = strings.TrimPrefix(raw, "```")
 			raw = strings.TrimSuffix(raw, "```")
@@ -170,26 +252,32 @@ func GenerateFlashcards(_ context.Context, in contracts.GenerateFlashcardsInput)
 		return tool.Result[contracts.GenerateFlashcardsOutput]{
 			Text: formatCardsText(cards),
 			Structured: contracts.GenerateFlashcardsOutput{
-				Kind:              "flashcards",
-				Cards:             cards,
-				CardCount:         cardCount,
-				DurationEstimate:  estimate,
-				Language:          lang,
-				PreviewOnly:       true,
+				Kind:             "flashcards",
+				Cards:            cards,
+				CardCount:        cardCount,
+				DurationEstimate: estimate,
+				Language:         lang,
+				PreviewOnly:      true,
 			},
 		}, nil
 	}
 
-	// TODO: TTS synthesis
+	script := buildFlashcardScript(cards, pauseDuration)
+	audioPath, err := synthesizeToDisk(script, in.Voice, "flashcards")
+	if err != nil {
+		return tool.Result[contracts.GenerateFlashcardsOutput]{}, fmt.Errorf("tts failed: %w", err)
+	}
+
 	return tool.Result[contracts.GenerateFlashcardsOutput]{
 		Text: formatCardsText(cards),
 		Structured: contracts.GenerateFlashcardsOutput{
-			Kind:              "flashcards",
-			Cards:             cards,
-			CardCount:         cardCount,
-			DurationEstimate:  estimate,
-			Language:          lang,
-			PreviewOnly:       true,
+			Kind:             "flashcards",
+			Cards:            cards,
+			OutputPath:       audioPath,
+			CardCount:        cardCount,
+			DurationEstimate: estimate,
+			Language:         lang,
+			PreviewOnly:      false,
 		},
 	}, nil
 }
@@ -199,12 +287,55 @@ func SynthesizeSpeech(_ context.Context, in contracts.SynthesizeSpeechInput) (to
 	charCount := len(removePauseMarkers(in.Text))
 	estimate := fmt.Sprintf("~%d sec", charCount/20)
 
+	if bifrostClient == nil || SkipLLM {
+		return tool.Result[contracts.SynthesizeSpeechOutput]{
+			Text: fmt.Sprintf("Synthesized %d characters to %s", charCount, in.OutputPath),
+			Structured: contracts.SynthesizeSpeechOutput{
+				Kind:             "synthesize",
+				OutputPath:       in.OutputPath,
+				CharacterCount:   charCount,
+				DurationEstimate: estimate,
+			},
+		}, nil
+	}
+
+	format := in.ResponseFormat
+	if format == "" {
+		format = "mp3"
+	}
+
+	response, bfErr := bifrostClient.SpeechRequest(
+		schemas.NewBifrostContext(context.Background(), schemas.NoDeadline),
+		&schemas.BifrostSpeechRequest{
+			Provider: schemas.OpenAI,
+			Model:    ttsModel(),
+			Input: &schemas.SpeechInput{
+				Input: in.Text,
+			},
+			Params: &schemas.SpeechParameters{
+				VoiceConfig: &schemas.SpeechVoiceInput{
+					Voice: schemas.Ptr(voiceID(in.Voice)),
+				},
+				ResponseFormat: format,
+			},
+		},
+	)
+	if bfErr != nil {
+		return tool.Result[contracts.SynthesizeSpeechOutput]{}, fmt.Errorf("tts failed: %s", bfErr.GetErrorString())
+	}
+
+	if response != nil && len(response.Audio) > 0 {
+		if err := os.WriteFile(in.OutputPath, response.Audio, 0644); err != nil {
+			return tool.Result[contracts.SynthesizeSpeechOutput]{}, fmt.Errorf("failed to write audio: %w", err)
+		}
+	}
+
 	return tool.Result[contracts.SynthesizeSpeechOutput]{
 		Text: fmt.Sprintf("Synthesized %d characters to %s", charCount, in.OutputPath),
 		Structured: contracts.SynthesizeSpeechOutput{
-			Kind:            "synthesize",
-			OutputPath:      in.OutputPath,
-			CharacterCount:  charCount,
+			Kind:             "synthesize",
+			OutputPath:       in.OutputPath,
+			CharacterCount:   charCount,
 			DurationEstimate: estimate,
 		},
 	}, nil
@@ -255,6 +386,22 @@ func formatCardsText(cards []contracts.FlashCard) string {
 	return sb.String()
 }
 
+func buildFlashcardScript(cards []contracts.FlashCard, pauseSec int) string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("Welcome to your flashcard session. You will hear %d questions.\n", len(cards)))
+	sb.WriteString(fmt.Sprintf("After each question, you will have %d seconds to recall the answer before it is revealed.\n\n", pauseSec))
+
+	for i, c := range cards {
+		sb.WriteString(fmt.Sprintf("[Card %d of %d]\n", i+1, len(cards)))
+		sb.WriteString(fmt.Sprintf("Question: %s\n", c.Question))
+		sb.WriteString(fmt.Sprintf("[PAUSE:%d]\n", pauseSec))
+		sb.WriteString(fmt.Sprintf("Answer: %s\n\n", c.Answer))
+	}
+
+	sb.WriteString("That's the end of your session. Great work.\n")
+	return sb.String()
+}
+
 func removePauseMarkers(text string) string {
 	result := text
 	for {
@@ -271,9 +418,73 @@ func removePauseMarkers(text string) string {
 	return result
 }
 
-func modelName() string {
+func chatModel() string {
+	if model := os.Getenv("OPENROUTER_MODEL"); model != "" {
+		return model
+	}
 	if model := os.Getenv("OPENAI_MODEL"); model != "" {
 		return model
 	}
-	return openai.GPT4oMini
+	return "openai/gpt-4o-mini"
+}
+
+func ttsModel() string {
+	if model := os.Getenv("TTS_MODEL"); model != "" {
+		return model
+	}
+	return "tts-1"
+}
+
+func voiceID(voice string) string {
+	if voice != "" {
+		return voice
+	}
+	if v := os.Getenv("TTS_VOICE"); v != "" {
+		return v
+	}
+	return "alloy"
+}
+
+func synthesizeToDisk(text, voice, prefix string) (string, error) {
+	if bifrostClient == nil {
+		return "", fmt.Errorf("tts client not initialized")
+	}
+
+	cleanText := removePauseMarkers(text)
+
+	response, bfErr := bifrostClient.SpeechRequest(
+		schemas.NewBifrostContext(context.Background(), schemas.NoDeadline),
+		&schemas.BifrostSpeechRequest{
+			Provider: schemas.OpenAI,
+			Model:    ttsModel(),
+			Input: &schemas.SpeechInput{
+				Input: cleanText,
+			},
+			Params: &schemas.SpeechParameters{
+				VoiceConfig: &schemas.SpeechVoiceInput{
+					Voice: schemas.Ptr(voiceID(voice)),
+				},
+				ResponseFormat: "mp3",
+			},
+		},
+	)
+	if bfErr != nil {
+		return "", fmt.Errorf("tts failed: %s", bfErr.GetErrorString())
+	}
+
+	if response == nil || len(response.Audio) == 0 {
+		return "", fmt.Errorf("no audio returned")
+	}
+
+	tmpFile, err := os.CreateTemp("", fmt.Sprintf("%s-*.mp3", prefix))
+	if err != nil {
+		return "", err
+	}
+	defer tmpFile.Close()
+
+	if _, err := tmpFile.Write(response.Audio); err != nil {
+		return "", err
+	}
+
+	return tmpFile.Name(), nil
 }

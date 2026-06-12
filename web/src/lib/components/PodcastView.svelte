@@ -72,13 +72,15 @@
   </div>
 
   <div class="field">
-    <label>Tone</label>
-    <div class="tone-grid">
+    <span id="tone-label" class="field-label">Tone</span>
+    <div class="tone-grid" role="radiogroup" aria-labelledby="tone-label">
       {#each tones as t}
         <button
           type="button"
           class="tone-btn"
           class:active={tone === t.value}
+          role="radio"
+          aria-checked={tone === t.value}
           onclick={() => tone = t.value}
         >
           <span class="tone-label">{t.label}</span>
@@ -132,7 +134,7 @@
     gap: 6px;
   }
 
-  label {
+  label, .field-label {
     font-size: 12px;
     font-weight: 600;
     color: #4a4a4a;

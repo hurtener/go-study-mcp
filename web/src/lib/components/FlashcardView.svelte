@@ -84,13 +84,15 @@
     </div>
 
     <div class="field">
-      <label>Difficulty</label>
-      <div class="difficulty-row">
+      <span id="difficulty-label" class="field-label">Difficulty</span>
+      <div class="difficulty-row" role="radiogroup" aria-labelledby="difficulty-label">
         {#each difficulties as d}
           <button
             type="button"
             class="diff-btn"
             class:active={difficulty === d.value}
+            role="radio"
+            aria-checked={difficulty === d.value}
             onclick={() => difficulty = d.value}
           >
             <span class="diff-label">{d.label}</span>
@@ -101,8 +103,8 @@
     </div>
   {:else}
     <div class="field">
-      <label>Flashcards</label>
-      <div class="cards-list">
+      <span id="cards-label" class="field-label">Flashcards</span>
+      <div class="cards-list" role="group" aria-labelledby="cards-label">
         {#each cards as card, i}
           <div class="card-row">
             <span class="card-num">{i + 1}</span>
@@ -198,7 +200,7 @@
     gap: 6px;
   }
 
-  label {
+  label, .field-label {
     font-size: 12px;
     font-weight: 600;
     color: #4a4a4a;
