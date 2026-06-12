@@ -77,7 +77,8 @@ func (a *OpenRouterAccount) GetConfigForProvider(provider schemas.ModelProvider)
 	if provider == schemas.OpenAI {
 		baseURL := os.Getenv("OPENROUTER_BASE_URL")
 		if baseURL == "" {
-			baseURL = "https://openrouter.ai/api/v1"
+			// Bifrost appends /v1/chat/completions internally
+			baseURL = "https://openrouter.ai/api"
 		}
 		return &schemas.ProviderConfig{
 			NetworkConfig: schemas.NetworkConfig{
@@ -303,12 +304,17 @@ func SynthesizeSpeech(_ context.Context, in contracts.SynthesizeSpeechInput) (to
 	if format == "" {
 		format = "mp3"
 	}
+	// Gemini TTS only supports PCM format
+	model := ttsModel()
+	if strings.Contains(model, "gemini") && format != "pcm" {
+		format = "pcm"
+	}
 
 	response, bfErr := bifrostClient.SpeechRequest(
 		schemas.NewBifrostContext(context.Background(), schemas.NoDeadline),
 		&schemas.BifrostSpeechRequest{
 			Provider: schemas.OpenAI,
-			Model:    ttsModel(),
+			Model:    model,
 			Input: &schemas.SpeechInput{
 				Input: in.Text,
 			},
@@ -419,6 +425,10 @@ func removePauseMarkers(text string) string {
 }
 
 func chatModel() string {
+	// Support STUDYAUDIO_LLM_MODEL from .env
+	if model := os.Getenv("STUDYAUDIO_LLM_MODEL"); model != "" {
+		return model
+	}
 	if model := os.Getenv("OPENROUTER_MODEL"); model != "" {
 		return model
 	}
@@ -429,6 +439,9 @@ func chatModel() string {
 }
 
 func ttsModel() string {
+	if model := os.Getenv("STUDYAUDIO_TTS_MODEL"); model != "" {
+		return model
+	}
 	if model := os.Getenv("TTS_MODEL"); model != "" {
 		return model
 	}
@@ -438,6 +451,9 @@ func ttsModel() string {
 func voiceID(voice string) string {
 	if voice != "" {
 		return voice
+	}
+	if v := os.Getenv("STUDYAUDIO_DEFAULT_VOICE"); v != "" {
+		return v
 	}
 	if v := os.Getenv("TTS_VOICE"); v != "" {
 		return v
@@ -451,12 +467,19 @@ func synthesizeToDisk(text, voice, prefix string) (string, error) {
 	}
 
 	cleanText := removePauseMarkers(text)
+	model := ttsModel()
+
+	// Gemini TTS only supports PCM format, convert to mp3 after
+	responseFormat := "mp3"
+	if strings.Contains(model, "gemini") {
+		responseFormat = "pcm"
+	}
 
 	response, bfErr := bifrostClient.SpeechRequest(
 		schemas.NewBifrostContext(context.Background(), schemas.NoDeadline),
 		&schemas.BifrostSpeechRequest{
 			Provider: schemas.OpenAI,
-			Model:    ttsModel(),
+			Model:    model,
 			Input: &schemas.SpeechInput{
 				Input: cleanText,
 			},
@@ -464,7 +487,7 @@ func synthesizeToDisk(text, voice, prefix string) (string, error) {
 				VoiceConfig: &schemas.SpeechVoiceInput{
 					Voice: schemas.Ptr(voiceID(voice)),
 				},
-				ResponseFormat: "mp3",
+				ResponseFormat: responseFormat,
 			},
 		},
 	)
@@ -476,7 +499,14 @@ func synthesizeToDisk(text, voice, prefix string) (string, error) {
 		return "", fmt.Errorf("no audio returned")
 	}
 
-	tmpFile, err := os.CreateTemp("", fmt.Sprintf("%s-*.mp3", prefix))
+	// For PCM, we need to wrap in a WAV header or save as raw
+	// For now, save with appropriate extension
+	ext := "mp3"
+	if responseFormat == "pcm" {
+		ext = "raw" // Raw PCM - caller can convert
+	}
+
+	tmpFile, err := os.CreateTemp("", fmt.Sprintf("%s-*.%s", prefix, ext))
 	if err != nil {
 		return "", err
 	}
