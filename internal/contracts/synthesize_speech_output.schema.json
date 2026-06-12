@@ -1,0 +1,20 @@
+{
+  "type": "object",
+  "properties": {
+    "outputPath": {
+      "type": "string"
+    },
+    "characterCount": {
+      "type": "integer"
+    },
+    "durationEstimate": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "outputPath",
+    "characterCount",
+    "durationEstimate"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,49 @@
+{
+  "type": "object",
+  "properties": {
+    "content": {
+      "type": "string"
+    },
+    "cards": {
+      "type": [
+        "null",
+        "array"
+      ],
+      "items": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string"
+          },
+          "answer": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "question",
+          "answer"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "language": {
+      "type": "string"
+    },
+    "difficulty": {
+      "type": "string"
+    },
+    "cardCount": {
+      "type": "integer"
+    },
+    "pauseDuration": {
+      "type": "integer"
+    },
+    "voice": {
+      "type": "string"
+    },
+    "previewOnly": {
+      "type": "boolean"
+    }
+  },
+  "additionalProperties": false
+}

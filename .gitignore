@@ -1,0 +1,12 @@
+# Build output
+/bin/
+/dist/
+
+# Go test artifacts
+*.test
+coverage.out
+
+# Environment files
+.env
+.env.local
+.env.*.local

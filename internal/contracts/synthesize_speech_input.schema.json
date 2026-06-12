@@ -1,0 +1,22 @@
+{
+  "type": "object",
+  "properties": {
+    "text": {
+      "type": "string"
+    },
+    "outputPath": {
+      "type": "string"
+    },
+    "voice": {
+      "type": "string"
+    },
+    "responseFormat": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "text",
+    "outputPath"
+  ],
+  "additionalProperties": false
+}

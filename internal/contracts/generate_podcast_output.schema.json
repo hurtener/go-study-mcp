@@ -1,0 +1,31 @@
+{
+  "type": "object",
+  "properties": {
+    "script": {
+      "type": "string"
+    },
+    "outputPath": {
+      "type": "string"
+    },
+    "wordCount": {
+      "type": "integer"
+    },
+    "durationEstimate": {
+      "type": "string"
+    },
+    "language": {
+      "type": "string"
+    },
+    "previewOnly": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "script",
+    "wordCount",
+    "durationEstimate",
+    "language",
+    "previewOnly"
+  ],
+  "additionalProperties": false
+}

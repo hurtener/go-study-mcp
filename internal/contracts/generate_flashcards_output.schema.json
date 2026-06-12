@@ -1,0 +1,50 @@
+{
+  "type": "object",
+  "properties": {
+    "cards": {
+      "type": [
+        "null",
+        "array"
+      ],
+      "items": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string"
+          },
+          "answer": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "question",
+          "answer"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "outputPath": {
+      "type": "string"
+    },
+    "cardCount": {
+      "type": "integer"
+    },
+    "durationEstimate": {
+      "type": "string"
+    },
+    "language": {
+      "type": "string"
+    },
+    "previewOnly": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "cards",
+    "cardCount",
+    "durationEstimate",
+    "language",
+    "previewOnly"
+  ],
+  "additionalProperties": false
+}
