@@ -1,0 +1,28 @@
+{
+  "type": "object",
+  "properties": {
+    "content": {
+      "type": "string"
+    },
+    "language": {
+      "type": "string"
+    },
+    "difficulty": {
+      "type": "string"
+    },
+    "durationTarget": {
+      "type": "string"
+    },
+    "voice": {
+      "type": "string"
+    },
+    "previewOnly": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "content",
+    "language"
+  ],
+  "additionalProperties": false
+}

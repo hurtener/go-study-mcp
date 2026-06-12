@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>go-study-mcp — Study Audio for AI Assistants</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0a0a;
+      color: #e8e5e0;
+      line-height: 1.6;
+    }
+    .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
+
+    /* Hero */
+    .hero {
+      text-align: center;
+      padding: 80px 0 60px;
+      position: relative;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -200px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(139,115,85,0.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .logo svg { width: 56px; height: 56px; }
+    .logo-text {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    .hero h1 {
+      font-size: 48px;
+      font-weight: 700;
+      letter-spacing: -1.5px;
+      line-height: 1.15;
+      margin-bottom: 20px;
+      background: linear-gradient(135deg, #e8e5e0 0%, #8b7355 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero p {
+      font-size: 18px;
+      color: #8a8a8a;
+      max-width: 560px;
+      margin: 0 auto 36px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 6px 14px;
+      background: rgba(139,115,85,0.15);
+      border: 1px solid rgba(139,115,85,0.3);
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #c4a882;
+      margin-bottom: 28px;
+    }
+
+    /* Install */
+    .install {
+      background: #141414;
+      border: 1px solid #222;
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin: 0 auto 80px;
+      max-width: 520px;
+    }
+    .install-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #666;
+      margin-bottom: 10px;
+    }
+    .install code {
+      display: block;
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 14px;
+      color: #c4a882;
+      overflow-x: auto;
+    }
+
+    /* Tools grid */
+    .tools {
+      padding: 0 0 80px;
+    }
+    .tools h2 {
+      font-size: 28px;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 48px;
+      letter-spacing: -0.5px;
+    }
+    .tools-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+    .tool-card {
+      background: #141414;
+      border: 1px solid #1e1e1e;
+      border-radius: 14px;
+      padding: 28px;
+      transition: border-color 0.2s;
+    }
+    .tool-card:hover {
+      border-color: #333;
+    }
+    .tool-icon {
+      font-size: 28px;
+      margin-bottom: 14px;
+    }
+    .tool-card h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #e8e5e0;
+    }
+    .tool-card p {
+      font-size: 14px;
+      color: #777;
+      line-height: 1.5;
+    }
+    .tool-tag {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 3px 10px;
+      background: rgba(139,115,85,0.1);
+      border-radius: 6px;
+      font-size: 11px;
+      color: #8b7355;
+      font-weight: 500;
+    }
+
+    /* Voice tags section */
+    .voice-section {
+      padding: 60px 0 80px;
+      text-align: center;
+    }
+    .voice-section h2 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      letter-spacing: -0.5px;
+    }
+    .voice-section > p {
+      color: #777;
+      margin-bottom: 40px;
+    }
+    .voice-tags {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      max-width: 600px;
+      margin: 0 auto 40px;
+    }
+    .voice-tag {
+      padding: 8px 16px;
+      background: #141414;
+      border: 1px solid #1e1e1e;
+      border-radius: 8px;
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 13px;
+      color: #c4a882;
+    }
+    .script-example {
+      background: #141414;
+      border: 1px solid #1e1e1e;
+      border-radius: 14px;
+      padding: 28px;
+      text-align: left;
+      max-width: 640px;
+      margin: 0 auto;
+      font-size: 14px;
+      line-height: 1.8;
+      color: #aaa;
+    }
+    .script-example .tag {
+      color: #c4a882;
+      font-weight: 600;
+    }
+
+    /* Platforms */
+    .platforms {
+      padding: 0 0 80px;
+      text-align: center;
+    }
+    .platforms h2 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 36px;
+      letter-spacing: -0.5px;
+    }
+    .platform-grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+    }
+    .platform {
+      padding: 10px 20px;
+      background: #141414;
+      border: 1px solid #1e1e1e;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #ccc;
+      text-decoration: none;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .platform:hover {
+      border-color: #8b7355;
+      color: #e8e5e0;
+    }
+
+    /* Footer */
+    footer {
+      padding: 40px 0;
+      border-top: 1px solid #1a1a1a;
+      text-align: center;
+      color: #555;
+      font-size: 13px;
+    }
+    footer a {
+      color: #8b7355;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="badge">v0.1 — Open Source</div>
+    <div class="logo">
+      <svg viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="56" height="56" rx="14" fill="#1a1613"/>
+        <path d="M16 38V18l8 10 8-10v20" stroke="#8b7355" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="40" cy="20" r="4" fill="#8b7355" opacity="0.4"/>
+        <path d="M36 28c4-2 8-1 10 2" stroke="#8b7355" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+      </svg>
+      <span class="logo-text">go-study-mcp</span>
+    </div>
+    <h1>Turn your notes into study audio</h1>
+    <p>An MCP server that transforms study material into narrated podcasts, deep study guides, flashcards, and speech — with expressive TTS that actually sounds good.</p>
+  </section>
+
+  <!-- Install -->
+  <div class="install">
+    <div class="install-label">Quick install</div>
+    <code>curl -sL https://github.com/hurtener/go-study-mcp/releases/latest/download/go-study-mcp-macos-arm64 -o go-study-mcp && chmod +x go-study-mcp</code>
+  </div>
+
+  <!-- Tools -->
+  <section class="tools">
+    <h2>Four tools, one server</h2>
+    <div class="tools-grid">
+      <div class="tool-card">
+        <div class="tool-icon">🎙️</div>
+        <h3>generate_podcast</h3>
+        <p>Transform study material into a narrated podcast with flexible tone, persona, and language support.</p>
+        <span class="tool-tag">casual · academic · custom</span>
+      </div>
+      <div class="tool-card">
+        <div class="tool-icon">📖</div>
+        <h3>generate_study_guide</h3>
+        <p>Deep expert-level narrated study guide with expressive voice tags for genuine tonal variation.</p>
+        <span class="tool-tag">undergraduate → PhD</span>
+      </div>
+      <div class="tool-card">
+        <div class="tool-icon">🃏</div>
+        <h3>generate_flashcards</h3>
+        <p>Q&A flashcards with timed pauses for active recall. The audio waits for you to think.</p>
+        <span class="tool-tag">basic · intermediate · advanced</span>
+      </div>
+      <div class="tool-card">
+        <div class="tool-icon">🔊</div>
+        <h3>synthesize_speech</h3>
+        <p>Direct text-to-speech with [PAUSE:N] markers for custom pacing and emphasis.</p>
+        <span class="tool-tag">multi-language</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Voice tags -->
+  <section class="voice-section">
+    <h2>Voice that teaches, not just reads</h2>
+    <p>The study guide tool uses expressive audio tags that Gemini TTS interprets for genuine emotion.</p>
+
+    <div class="voice-tags">
+      <span class="voice-tag">[warm]</span>
+      <span class="voice-tag">[thoughtful]</span>
+      <span class="voice-tag">[curious]</span>
+      <span class="voice-tag">[emphasizing]</span>
+      <span class="voice-tag">[serious]</span>
+      <span class="voice-tag">[normal voice]</span>
+      <span class="voice-tag">[pause]</span>
+    </div>
+
+    <div class="script-example">
+      <span class="tag">[warm]</span> Bienvenido a esta guía. Hoy vamos a hablar de algo que llevás encima las 24 horas del día.<br><br>
+      <span class="tag">[thoughtful]</span> Antes de hablar de la piel en sí, necesitamos tener claro el panorama general.<br><br>
+      <span class="tag">[curious]</span> ¿Y por qué primero la innata y después la adaptativa? Porque la innata es veloz.<br><br>
+      <span class="tag">[emphasizing]</span> La adaptativa deja células de memoria. Esto es lo más importante de toda la parte.
+    </div>
+  </section>
+
+  <!-- Platforms -->
+  <section class="platforms">
+    <h2>Works with your AI assistant</h2>
+    <div class="platform-grid">
+      <a href="https://github.com/hurtener/go-study-mcp/blob/main/docs/CONFIGURE.md" class="platform">Claude Desktop</a>
+      <a href="https://github.com/hurtener/go-study-mcp/blob/main/docs/CONFIGURE.md" class="platform">Claude Code</a>
+      <a href="https://github.com/hurtener/go-study-mcp/blob/main/docs/CONFIGURE.md" class="platform">OpenAI Codex</a>
+      <a href="https://github.com/hurtener/go-study-mcp/blob/main/docs/CONFIGURE.md" class="platform">Cursor</a>
+      <a href="https://github.com/hurtener/go-study-mcp/blob/main/docs/CONFIGURE.md" class="platform">Windsurf</a>
+      <a href="https://github.com/hurtener/go-study-mcp/blob/main/docs/CONFIGURE.md" class="platform">Any MCP client</a>
+    </div>
+  </section>
+
+  <footer>
+    <p>Apache 2.0 · Built with <a href="https://github.com/hurtener/dockyard">Dockyard</a> · <a href="https://github.com/hurtener/go-study-mcp">GitHub</a></p>
+  </footer>
+
+</div>
+
+</body>
+</html>

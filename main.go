@@ -1,7 +1,8 @@
 // Command go-study-mcp is an MCP server for generating study audio content.
 //
-// It registers three tools (generate_podcast, generate_flashcards,
-// synthesize_speech) and serves the MCP protocol with an inline UI.
+// It registers four tools (generate_podcast, generate_study_guide,
+// generate_flashcards, synthesize_speech) and serves the MCP protocol
+// with an inline UI.
 package main
 
 import (

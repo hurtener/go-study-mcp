@@ -38,6 +38,13 @@ tools:
     ui: studio
     task_support: forbidden
 
+  - name: generate_study_guide
+    description: Generate a deep, expert-level narrated study guide with expressive audio tags for multi-tonal TTS.
+    input: internal/contracts.GenerateStudyGuideInput
+    output: internal/contracts.GenerateStudyGuideOutput
+    ui: studio
+    task_support: forbidden
+
 quality:
   require_loading_state: true
   require_empty_state: true
