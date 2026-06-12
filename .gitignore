@@ -10,3 +10,7 @@ coverage.out
 .env
 .env.local
 .env.*.local
+
+# Node
+node_modules/
+web/node_modules/

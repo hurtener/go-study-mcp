@@ -1,6 +1,9 @@
 {
   "type": "object",
   "properties": {
+    "kind": {
+      "type": "string"
+    },
     "cards": {
       "type": [
         "null",
@@ -40,6 +43,7 @@
     }
   },
   "required": [
+    "kind",
     "cards",
     "cardCount",
     "durationEstimate",

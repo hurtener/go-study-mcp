@@ -1,6 +1,9 @@
 {
   "type": "object",
   "properties": {
+    "kind": {
+      "type": "string"
+    },
     "outputPath": {
       "type": "string"
     },
@@ -12,6 +15,7 @@
     }
   },
   "required": [
+    "kind",
     "outputPath",
     "characterCount",
     "durationEstimate"

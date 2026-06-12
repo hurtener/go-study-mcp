@@ -1,0 +1,14 @@
+{
+  "kind": "flashcards",
+  "cards": [
+    {"question": "What is the primary function of mitochondria?", "answer": "Mitochondria produce ATP through cellular respiration, converting glucose into usable cellular energy."},
+    {"question": "Why are mitochondria called the powerhouse of the cell?", "answer": "Because they generate most of the cell's supply of ATP, which is used as a source of chemical energy."},
+    {"question": "What is unique about mitochondrial DNA?", "answer": "Mitochondria have their own DNA, separate from nuclear DNA, supporting the endosymbiotic theory that they evolved from bacteria."},
+    {"question": "What is the cristae?", "answer": "Cristae are the folds of the inner mitochondrial membrane that increase surface area for ATP production."},
+    {"question": "What is the endosymbiotic theory?", "answer": "The theory that mitochondria evolved from free-living bacteria that were absorbed by ancestral eukaryotic cells."}
+  ],
+  "cardCount": 5,
+  "durationEstimate": "~4 min",
+  "language": "en",
+  "previewOnly": true
+}

@@ -1,6 +1,9 @@
 {
   "type": "object",
   "properties": {
+    "kind": {
+      "type": "string"
+    },
     "script": {
       "type": "string"
     },
@@ -21,6 +24,7 @@
     }
   },
   "required": [
+    "kind",
     "script",
     "wordCount",
     "durationEstimate",

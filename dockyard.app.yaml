@@ -6,30 +6,43 @@ version: 0.1.0
 runtime:
   transports: [stdio]
 
+apps:
+  - id: studio
+    uri: ui://go-study-mcp/studio/index.html
+    entry: web/src/App.svelte
+    display_modes: [inline]
+    csp:
+      connect: []
+      resource: []
+    visibility: [model, app]
+
 tools:
   - name: generate_podcast
     description: Transform study material into a narrated podcast-style audio with flexible tone, persona, and language support.
     input: internal/contracts.GeneratePodcastInput
     output: internal/contracts.GeneratePodcastOutput
+    ui: studio
     task_support: forbidden
 
   - name: generate_flashcards
     description: Generate Q&A flashcard audio from study material with timed pauses for active recall.
     input: internal/contracts.GenerateFlashcardsInput
     output: internal/contracts.GenerateFlashcardsOutput
+    ui: studio
     task_support: forbidden
 
   - name: synthesize_speech
     description: Direct text-to-speech synthesis with support for [PAUSE:N] markers.
     input: internal/contracts.SynthesizeSpeechInput
     output: internal/contracts.SynthesizeSpeechOutput
+    ui: studio
     task_support: forbidden
 
 quality:
-  require_loading_state: false
-  require_empty_state: false
-  require_error_state: false
-  require_permission_state: false
+  require_loading_state: true
+  require_empty_state: true
+  require_error_state: true
+  require_permission_state: true
   require_fixtures: true
   require_contract_tests: true
   require_spec_compliance: true

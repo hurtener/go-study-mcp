@@ -39,6 +39,8 @@ type GeneratePodcastInput struct {
 
 // GeneratePodcastOutput is the typed output for the generate_podcast tool.
 type GeneratePodcastOutput struct {
+	// Kind discriminates the output type for the UI dispatcher.
+	Kind string `json:"kind"`
 	// Script is the full narration text produced by the LLM.
 	Script string `json:"script"`
 	// OutputPath is the absolute path to the generated audio file.
@@ -97,6 +99,8 @@ type GenerateFlashcardsInput struct {
 
 // GenerateFlashcardsOutput is the typed output for the generate_flashcards tool.
 type GenerateFlashcardsOutput struct {
+	// Kind discriminates the output type for the UI dispatcher.
+	Kind string `json:"kind"`
 	// Cards is the list of generated or provided Q&A pairs.
 	Cards []FlashCard `json:"cards"`
 	// OutputPath is the absolute path to the generated audio file.
@@ -132,6 +136,8 @@ type SynthesizeSpeechInput struct {
 
 // SynthesizeSpeechOutput is the typed output for the synthesize_speech tool.
 type SynthesizeSpeechOutput struct {
+	// Kind discriminates the output type for the UI dispatcher.
+	Kind string `json:"kind"`
 	// OutputPath is the absolute path to the generated audio file.
 	OutputPath string `json:"outputPath"`
 	// CharacterCount is the number of characters sent to the TTS engine

@@ -1,44 +1,51 @@
-// Command go-study-mcp is an MCP server scaffolded by 'dockyard new'.
+// Command go-study-mcp is an MCP server for generating study audio content.
 //
-// It registers one example tool ("greet") and serves the MCP protocol. The
-// transport is chosen by the DOCKYARD_TRANSPORT environment variable — "stdio"
-// (the default: the local, single-user transport) or "http" (the
-// streamable-HTTP service mode). 'dockyard run --transport http' sets it for
-// you; you can also set it by hand. Wire the server into an MCP host (Claude,
-// Cursor, …) with 'dockyard install'.
+// It registers three tools (generate_podcast, generate_flashcards,
+// synthesize_speech) and serves the MCP protocol with an inline UI.
 package main
 
 import (
 	"context"
+	"embed"
 	"errors"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 
+	"github.com/hurtener/dockyard/runtime/apps"
 	"github.com/hurtener/dockyard/runtime/server"
 )
 
-// httpAddr is the address the HTTP transport listens on when
-// DOCKYARD_TRANSPORT=http. DOCKYARD_HTTP_ADDR overrides it.
-const httpAddr = "127.0.0.1:8080"
+//go:embed all:web/dist
+var uiBundle embed.FS
+
+const (
+	httpAddr = "127.0.0.1:8080"
+	appURI   = "ui://go-study-mcp/studio/index.html"
+	appName  = "studio"
+	appTitle = "Study Audio Studio"
+)
 
 func main() {
-	// A text slog handler — readable local logs (Dockyard convention).
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
 
-	// Serve until the process is interrupted (Ctrl-C) or the host closes the
-	// transport.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
 	srv, err := server.New(server.Info{
 		Name:    "go-study-mcp",
-		Title:   "Go Study Mcp",
+		Title:   "Go Study MCP",
 		Version: "0.1.0",
 	}, &server.Options{Logger: logger})
 	if err != nil {
 		logger.Error("create server", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+
+	if err := registerApp(srv); err != nil {
+		logger.Error("register app", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
 
@@ -53,10 +60,20 @@ func main() {
 	}
 }
 
-// serve brings up the transport named by DOCKYARD_TRANSPORT. An unset or
-// "stdio" value serves stdio; "http" serves the streamable-HTTP transport. An
-// unrecognised value is a clean, explained failure rather than a silent
-// fallback.
+// registerApp embeds the Svelte UI bundle and registers it with the server.
+func registerApp(srv *server.Server) error {
+	html, err := fs.ReadFile(uiBundle, "web/dist/index.html")
+	if err != nil {
+		return err
+	}
+	return apps.Register(srv, apps.App{
+		URI:   appURI,
+		Name:  appName,
+		Title: appTitle,
+		HTML:  html,
+	})
+}
+
 func serve(ctx context.Context, srv *server.Server, logger *slog.Logger) error {
 	switch transport := os.Getenv("DOCKYARD_TRANSPORT"); transport {
 	case "", "stdio":
@@ -68,10 +85,6 @@ func serve(ctx context.Context, srv *server.Server, logger *slog.Logger) error {
 	}
 }
 
-// serveHTTP serves the streamable-HTTP transport. The HTTP security posture is
-// the runtime's secure default — DNS-rebinding and cross-origin protection both
-// on (runtime/server.DefaultHTTPSecurity). The listen address is httpAddr,
-// overridable with DOCKYARD_HTTP_ADDR.
 func serveHTTP(ctx context.Context, srv *server.Server, logger *slog.Logger) error {
 	handler, err := srv.HTTPHandler(nil)
 	if err != nil {

@@ -54,6 +54,10 @@ export interface GeneratePodcastInput {
  */
 export interface GeneratePodcastOutput {
   /**
+   * Kind discriminates the output type for the UI dispatcher.
+   */
+  kind: string;
+  /**
    * Script is the full narration text produced by the LLM.
    */
   script: string;
@@ -143,6 +147,10 @@ export interface GenerateFlashcardsInput {
  */
 export interface GenerateFlashcardsOutput {
   /**
+   * Kind discriminates the output type for the UI dispatcher.
+   */
+  kind: string;
+  /**
    * Cards is the list of generated or provided Q&A pairs.
    */
   cards: FlashCard[];
@@ -195,6 +203,10 @@ export interface SynthesizeSpeechInput {
  * SynthesizeSpeechOutput is the typed output for the synthesize_speech tool.
  */
 export interface SynthesizeSpeechOutput {
+  /**
+   * Kind discriminates the output type for the UI dispatcher.
+   */
+  kind: string;
   /**
    * OutputPath is the absolute path to the generated audio file.
    */
