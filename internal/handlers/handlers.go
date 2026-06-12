@@ -611,7 +611,7 @@ func chatModel() string {
 	if model := os.Getenv("OPENAI_MODEL"); model != "" {
 		return model
 	}
-	return "openai/gpt-4o-mini"
+	return "deepseek/deepseek-v4-pro"
 }
 
 func ttsModel() string {
@@ -621,7 +621,7 @@ func ttsModel() string {
 	if model := os.Getenv("TTS_MODEL"); model != "" {
 		return model
 	}
-	return "tts-1"
+	return "google/gemini-3.1-flash-tts-preview"
 }
 
 func defaultSampleRate() int {
@@ -644,7 +644,7 @@ func voiceID(voice string) string {
 	if v := os.Getenv("TTS_VOICE"); v != "" {
 		return v
 	}
-	return "alloy"
+	return "Erinome"
 }
 
 func synthesizeToDisk(text, voice, prefix string) (string, error) {

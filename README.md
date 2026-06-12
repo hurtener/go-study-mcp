@@ -121,9 +121,9 @@ Four academic levels: `undergraduate` → `graduate` → `masters` → `phd`.
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `OPENROUTER_API_KEY` | **Required.** OpenRouter API key | — |
-| `STUDYAUDIO_LLM_MODEL` | LLM for text generation | `openai/gpt-4o-mini` |
-| `STUDYAUDIO_TTS_MODEL` | TTS model | `tts-1` |
-| `STUDYAUDIO_DEFAULT_VOICE` | TTS voice | `alloy` |
+| `STUDYAUDIO_LLM_MODEL` | LLM for text generation | `deepseek/deepseek-v4-pro` |
+| `STUDYAUDIO_TTS_MODEL` | TTS model | `google/gemini-3.1-flash-tts-preview` |
+| `STUDYAUDIO_DEFAULT_VOICE` | TTS voice | `Erinome` |
 
 ## Building from source
 
