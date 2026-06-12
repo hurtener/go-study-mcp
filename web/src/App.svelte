@@ -10,10 +10,11 @@
   let activeTab = $state('podcast');
   let toolResult = $state(null);
   let isGenerating = $state(false);
-  let bridge = $state(null);
   let ready = $state(false);
   let error = $state(null);
   let permission = $state(false);
+
+  const bridge = createBridge({ displayModes: ['inline'] });
 
   const tabs = [
     { id: 'podcast', label: 'Podcast', icon: '🎙️' },
@@ -22,25 +23,15 @@
     { id: 'synthesize', label: 'Synthesize', icon: '🔊' },
   ];
 
+  bridge.onToolResult((payload) => {
+    toolResult = payload.structuredContent;
+    isGenerating = false;
+  });
+
   onMount(async () => {
     try {
-      bridge = createBridge({ displayModes: ['inline'] });
       await bridge.connect();
-
-      // Check if we have the required permissions
-      // In a real app, this would check API keys or other prerequisites
-      const hasApiKey = true; // Placeholder
-      if (!hasApiKey) {
-        permission = true;
-        return;
-      }
-
       ready = true;
-
-      bridge.onToolResult((payload) => {
-        toolResult = payload.structuredContent;
-        isGenerating = false;
-      });
     } catch (e) {
       error = e.message || 'Failed to connect to host';
     }
