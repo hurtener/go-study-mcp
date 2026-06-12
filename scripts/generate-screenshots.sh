@@ -33,10 +33,10 @@ fi
 
 PORT=${PORT:-8080}
 
-echo "Starting server on port $PORT..."
-./go-study-mcp &
+echo "Starting server on port $PORT (HTTP transport)..."
+DOCKYARD_TRANSPORT=http DOCKYARD_HTTP_ADDR="127.0.0.1:$PORT" ./go-study-mcp &
 SERVER_PID=$!
-sleep 1
+sleep 2
 
 echo "Starting inspector on port ${INSPECTOR_PORT:-0}..."
 $DOCKYARD inspect --url "http://127.0.0.1:$PORT" --dir . &
