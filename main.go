@@ -63,7 +63,7 @@ func main() {
 
 // registerApp embeds the Svelte UI bundle and registers it with the server.
 func registerApp(srv *server.Server) error {
-	html, err := fs.ReadFile(uiBundle, "web/dist/src/App.html")
+	html, err := fs.ReadFile(uiBundle, "web/dist/index.html")
 	if err != nil {
 		return err
 	}

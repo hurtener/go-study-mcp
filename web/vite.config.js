@@ -4,19 +4,11 @@ import { viteSingleFile } from 'vite-plugin-singlefile';
 
 export default defineConfig({
   plugins: [svelte(), viteSingleFile()],
+  base: './',
   build: {
-    target: 'esnext',
-    format: 'iife',
-    assetsInlineLimit: 100000000,
-    cssCodeSplit: false,
     outDir: 'dist',
-    rollupOptions: {
-      input: 'src/App.html',
-      output: {
-        entryFileNames: '[name].js',
-        chunkFileNames: '[name].js',
-        assetFileNames: '[name].[ext]',
-      },
-    },
+    emptyOutDir: true,
+    cssCodeSplit: false,
+    target: 'es2020',
   },
 });
