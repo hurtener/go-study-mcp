@@ -9,12 +9,13 @@ export default defineConfig({
     format: 'iife',
     assetsInlineLimit: 100000000,
     cssCodeSplit: false,
+    outDir: 'dist',
     rollupOptions: {
       input: 'src/App.html',
       output: {
-        entryFileNames: 'assets/[name].js',
-        chunkFileNames: 'assets/[name].js',
-        assetFileNames: 'assets/[name].[ext]',
+        entryFileNames: '[name].js',
+        chunkFileNames: '[name].js',
+        assetFileNames: '[name].[ext]',
       },
     },
   },

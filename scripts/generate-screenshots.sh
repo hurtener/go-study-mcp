@@ -16,6 +16,8 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+DOCKYARD="$(go env GOPATH)/bin/dockyard"
+
 # Build if needed
 if [ ! -f go-study-mcp ]; then
   echo "Building go-study-mcp..."
@@ -36,13 +38,13 @@ echo "Starting server on port $PORT..."
 SERVER_PID=$!
 sleep 1
 
-echo "Starting inspector..."
-dockyard inspect --url "http://127.0.0.1:$PORT" --dir . --no-open &
+echo "Starting inspector on port ${INSPECTOR_PORT:-0}..."
+$DOCKYARD inspect --url "http://127.0.0.1:$PORT" --dir . &
 INSPECTOR_PID=$!
 
 echo ""
 echo "═══════════════════════════════════════════════════════════"
-echo "  Inspector running at http://127.0.0.1:$(dockyard inspect --url "http://127.0.0.1:$PORT" --dir . --no-open 2>&1 | grep -o 'http://[^ ]*' | head -1 || echo ':missing_port')"
+echo "  Inspector is running. Look for the URL in the output above."
 echo ""
 echo "  1. Open the inspector URL in your browser"
 echo "  2. Select a fixture from the Fixtures panel"
