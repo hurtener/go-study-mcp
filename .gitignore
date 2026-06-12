@@ -2,6 +2,7 @@
 /bin/
 /dist/
 /web/dist/
+/go-study-mcp
 
 # Go test artifacts
 *.test
