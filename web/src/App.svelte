@@ -14,6 +14,7 @@
   let ready = $state(false);
   let error = $state(null);
   let permission = $state(false);
+  let genError = $state(null);
 
   const bridge = createBridge({ displayModes: ['inline'] });
 
@@ -25,18 +26,40 @@
     { id: 'jobs', label: 'Jobs', icon: '📂' },
   ];
 
-  bridge.onToolResult((payload) => {
-    const sc = payload.structuredContent;
+  // applyResult renders whatever a tool returned. Async audio generation
+  // returns a job handle ("processing") and the audio shows up in the Jobs
+  // tab; preview results render their script/cards inline below.
+  function applyResult(sc) {
     isGenerating = false;
-    // Async audio generation returns a job handle ("processing"); the actual
-    // audio shows up in the Jobs tab. Preview results render inline below.
+    genError = null;
     if (sc && sc.status === 'processing') {
       toolResult = null;
       activeTab = 'jobs';
       return;
     }
     toolResult = sc;
-  });
+  }
+
+  // runTool invokes an MCP tool from the UI (host-proxied) and routes the
+  // result. The forms call this directly, so the studio drives generation
+  // itself rather than waiting for the model to call a tool.
+  async function runTool(name, args) {
+    handleGenerating();
+    try {
+      const res = await bridge.callTool(name, args);
+      if (res?.isError) {
+        handleError(res.content?.find((c) => c.type === 'text')?.text || 'Generation failed');
+        return;
+      }
+      applyResult(res.structuredContent);
+    } catch (e) {
+      handleError(e?.message || 'Generation failed');
+    }
+  }
+
+  // Results pushed by the host (when the model calls a tool) flow through the
+  // same renderer.
+  bridge.onToolResult((payload) => applyResult(payload.structuredContent));
 
   onMount(async () => {
     try {
@@ -50,6 +73,12 @@
   function handleGenerating() {
     isGenerating = true;
     toolResult = null;
+    genError = null;
+  }
+
+  function handleError(msg) {
+    isGenerating = false;
+    genError = msg;
   }
 </script>
 
@@ -105,15 +134,23 @@
         {/each}
       </nav>
 
+      {#if genError}
+        <div class="gen-error" role="alert">
+          <span>⚠️</span>
+          <span>{genError}</span>
+          <button class="dismiss" onclick={() => genError = null} aria-label="Dismiss">×</button>
+        </div>
+      {/if}
+
       <main class="content">
         {#if activeTab === 'podcast'}
-          <PodcastView onGenerating={handleGenerating} />
+          <PodcastView {runTool} />
         {:else if activeTab === 'study_guide'}
-          <StudyGuideView onGenerating={handleGenerating} />
+          <StudyGuideView {runTool} />
         {:else if activeTab === 'flashcards'}
-          <FlashcardView onGenerating={handleGenerating} />
+          <FlashcardView {runTool} />
         {:else if activeTab === 'synthesize'}
-          <SynthesizeView onGenerating={handleGenerating} />
+          <SynthesizeView {runTool} />
         {:else if activeTab === 'jobs'}
           <JobsView {bridge} />
         {/if}
@@ -300,6 +337,29 @@
     .tab-label {
       display: inline;
     }
+  }
+
+  .gen-error {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    margin-bottom: 16px;
+    background: #fdf3f2;
+    border: 1px solid #f3d6d2;
+    border-radius: 10px;
+    font-size: 13px;
+    color: #b4453a;
+  }
+
+  .gen-error .dismiss {
+    margin-left: auto;
+    border: none;
+    background: transparent;
+    color: #b4453a;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
   }
 
   .content {

@@ -1,5 +1,5 @@
 <script>
-  let { onGenerating } = $props();
+  let { runTool } = $props();
 
   let text = $state('');
   let voice = $state('alloy');
@@ -17,7 +17,11 @@
   async function handleSubmit(e) {
     e.preventDefault();
     if (!text.trim()) return;
-    onGenerating();
+    await runTool('synthesize_speech', {
+      text,
+      voice,
+      responseFormat: format,
+    });
   }
 </script>
 

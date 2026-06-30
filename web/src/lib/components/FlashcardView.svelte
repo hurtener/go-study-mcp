@@ -1,5 +1,5 @@
 <script>
-  let { onGenerating } = $props();
+  let { runTool } = $props();
 
   let mode = $state('content');
   let content = $state('');
@@ -30,7 +30,22 @@
 
   async function handleSubmit(e) {
     e.preventDefault();
-    onGenerating();
+    const args = {
+      language,
+      pauseDuration: Number(pauseDuration) || 5,
+      previewOnly,
+    };
+    if (mode === 'cards') {
+      const filled = cards.filter((c) => c.question.trim() && c.answer.trim());
+      if (filled.length === 0) return;
+      args.cards = filled;
+    } else {
+      if (!content.trim()) return;
+      args.content = content;
+      args.difficulty = difficulty;
+      args.cardCount = Number(cardCount) || 10;
+    }
+    await runTool('generate_flashcards', args);
   }
 </script>
 

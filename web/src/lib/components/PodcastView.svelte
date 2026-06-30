@@ -1,5 +1,5 @@
 <script>
-  let { onGenerating } = $props();
+  let { runTool } = $props();
 
   let content = $state('');
   let language = $state('en');
@@ -34,8 +34,15 @@
   async function handleSubmit(e) {
     e.preventDefault();
     if (!content.trim()) return;
-    onGenerating();
-    // Tool call will be handled by the host
+    await runTool('generate_podcast', {
+      content,
+      language,
+      durationTarget,
+      tone,
+      ...(persona.trim() ? { persona } : {}),
+      ...(topicHint.trim() ? { topicHint } : {}),
+      previewOnly,
+    });
   }
 </script>
 
