@@ -29,6 +29,12 @@
     "outputPath": {
       "type": "string"
     },
+    "jobId": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
     "cardCount": {
       "type": "integer"
     },

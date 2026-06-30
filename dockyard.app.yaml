@@ -45,6 +45,18 @@ tools:
     ui: studio
     task_support: forbidden
 
+  - name: list_jobs
+    description: List all audio generation jobs and their status. The UI polls this to render the Jobs tab.
+    input: internal/contracts.ListJobsInput
+    output: internal/contracts.ListJobsOutput
+    task_support: forbidden
+
+  - name: read_audio
+    description: Return a generated audio file as a data URI for inline playback. Reads are confined to the server output directory.
+    input: internal/contracts.ReadAudioInput
+    output: internal/contracts.ReadAudioOutput
+    task_support: forbidden
+
 quality:
   require_loading_state: true
   require_empty_state: true

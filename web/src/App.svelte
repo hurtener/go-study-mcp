@@ -5,6 +5,7 @@
   import FlashcardView from './lib/components/FlashcardView.svelte';
   import SynthesizeView from './lib/components/SynthesizeView.svelte';
   import StudyGuideView from './lib/components/StudyGuideView.svelte';
+  import JobsView from './lib/components/JobsView.svelte';
   import AudioPlayer from './lib/components/AudioPlayer.svelte';
 
   let activeTab = $state('podcast');
@@ -21,11 +22,20 @@
     { id: 'study_guide', label: 'Study Guide', icon: '📖' },
     { id: 'flashcards', label: 'Flashcards', icon: '🃏' },
     { id: 'synthesize', label: 'Synthesize', icon: '🔊' },
+    { id: 'jobs', label: 'Jobs', icon: '📂' },
   ];
 
   bridge.onToolResult((payload) => {
-    toolResult = payload.structuredContent;
+    const sc = payload.structuredContent;
     isGenerating = false;
+    // Async audio generation returns a job handle ("processing"); the actual
+    // audio shows up in the Jobs tab. Preview results render inline below.
+    if (sc && sc.status === 'processing') {
+      toolResult = null;
+      activeTab = 'jobs';
+      return;
+    }
+    toolResult = sc;
   });
 
   onMount(async () => {
@@ -104,6 +114,8 @@
           <FlashcardView onGenerating={handleGenerating} />
         {:else if activeTab === 'synthesize'}
           <SynthesizeView onGenerating={handleGenerating} />
+        {:else if activeTab === 'jobs'}
+          <JobsView {bridge} />
         {/if}
       </main>
     </div>

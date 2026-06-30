@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/hurtener/go-study-mcp/internal/contracts"
 	"github.com/hurtener/go-study-mcp/internal/handlers"
@@ -66,8 +67,7 @@ func TestIntegrationSynthesizeSpeech(t *testing.T) {
 	}
 
 	in := contracts.SynthesizeSpeechInput{
-		Text:       "Hello! This is a test of the study audio synthesis system.",
-		OutputPath: "/tmp/test_synth.mp3",
+		Text: "Hello! This is a test of the study audio synthesis system.",
 	}
 
 	res, err := handlers.SynthesizeSpeech(context.Background(), in)
@@ -75,14 +75,34 @@ func TestIntegrationSynthesizeSpeech(t *testing.T) {
 		t.Fatalf("SynthesizeSpeech failed: %v", err)
 	}
 
+	jobID := res.Structured.JobID
 	fmt.Printf("=== SYNTHESIZE ===\n")
-	fmt.Printf("Output: %s\n", res.Structured.OutputPath)
-	fmt.Printf("Characters: %d\n", res.Structured.CharacterCount)
+	fmt.Printf("Job: %s  Status: %s\n", jobID, res.Structured.Status)
+	if jobID == "" {
+		t.Fatalf("expected a job id; status=%s", res.Structured.Status)
+	}
 
-	if res.Structured.OutputPath != "" {
-		if info, err := os.Stat(res.Structured.OutputPath); err == nil {
-			fmt.Printf("File size: %d bytes\n", info.Size())
+	// Poll until the background job finishes (or time out).
+	deadline := time.Now().Add(90 * time.Second)
+	for {
+		job, ok := handlers.Registry.Get(jobID)
+		if !ok {
+			t.Fatalf("job %s disappeared", jobID)
 		}
+		if job.Status == "completed" {
+			fmt.Printf("Output: %s\n", job.OutputPath)
+			if info, err := os.Stat(job.OutputPath); err == nil {
+				fmt.Printf("File size: %d bytes\n", info.Size())
+			}
+			break
+		}
+		if job.Status == "failed" {
+			t.Fatalf("job failed: %s", job.Error)
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("job %s did not complete in time (status=%s)", jobID, job.Status)
+		}
+		time.Sleep(500 * time.Millisecond)
 	}
 }
 

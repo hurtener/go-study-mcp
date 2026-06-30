@@ -10,6 +10,12 @@
     "outputPath": {
       "type": "string"
     },
+    "jobId": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
     "wordCount": {
       "type": "integer"
     },

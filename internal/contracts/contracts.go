@@ -44,8 +44,14 @@ type GeneratePodcastOutput struct {
 	// Script is the full narration text produced by the LLM.
 	Script string `json:"script"`
 	// OutputPath is the absolute path to the generated audio file.
-	// Empty when PreviewOnly is true.
+	// Empty when PreviewOnly is true or while the job is still processing.
 	OutputPath string `json:"outputPath,omitempty"`
+	// JobID identifies the background generation job. Set when PreviewOnly is
+	// false; poll list_jobs / read_audio with it. Empty in preview mode.
+	JobID string `json:"jobId,omitempty"`
+	// Status is the job lifecycle state at return time (e.g. "processing").
+	// Empty in preview mode.
+	Status string `json:"status,omitempty"`
 	// WordCount is the number of words in the generated script.
 	WordCount int `json:"wordCount"`
 	// DurationEstimate is a human-readable approximation (e.g. "~5 min").
@@ -104,8 +110,14 @@ type GenerateFlashcardsOutput struct {
 	// Cards is the list of generated or provided Q&A pairs.
 	Cards []FlashCard `json:"cards"`
 	// OutputPath is the absolute path to the generated audio file.
-	// Empty when PreviewOnly is true.
+	// Empty when PreviewOnly is true or while the job is still processing.
 	OutputPath string `json:"outputPath,omitempty"`
+	// JobID identifies the background generation job. Set when PreviewOnly is
+	// false; poll list_jobs / read_audio with it. Empty in preview mode.
+	JobID string `json:"jobId,omitempty"`
+	// Status is the job lifecycle state at return time (e.g. "processing").
+	// Empty in preview mode.
+	Status string `json:"status,omitempty"`
 	// CardCount is the actual number of cards in the output.
 	CardCount int `json:"cardCount"`
 	// DurationEstimate is a human-readable approximation (e.g. "~6 min").
@@ -121,12 +133,14 @@ type GenerateFlashcardsOutput struct {
 // ──────────────────────────────────────────────────────────────────────────────
 
 // SynthesizeSpeechInput is the typed input for the synthesize_speech tool.
+//
+// Note: the destination path is owned by the server (a writable OUTPUT_DIR
+// resolved at startup), never supplied by the caller — a caller-chosen path
+// is unreliable across hosts (read-only CWD, non-existent mounts).
 type SynthesizeSpeechInput struct {
 	// Text is the exact text to synthesize. May include [PAUSE:N] markers
 	// for timed silence (N = seconds). Required.
 	Text string `json:"text"`
-	// OutputPath is the destination file path. Required.
-	OutputPath string `json:"outputPath"`
 	// Voice is the TTS voice identifier. Optional.
 	Voice string `json:"voice,omitempty"`
 	// ResponseFormat selects the audio container: "mp3" or "wav".
@@ -139,7 +153,13 @@ type SynthesizeSpeechOutput struct {
 	// Kind discriminates the output type for the UI dispatcher.
 	Kind string `json:"kind"`
 	// OutputPath is the absolute path to the generated audio file.
-	OutputPath string `json:"outputPath"`
+	// Empty while the job is still processing.
+	OutputPath string `json:"outputPath,omitempty"`
+	// JobID identifies the background synthesis job; poll list_jobs /
+	// read_audio with it.
+	JobID string `json:"jobId,omitempty"`
+	// Status is the job lifecycle state at return time (e.g. "processing").
+	Status string `json:"status,omitempty"`
 	// CharacterCount is the number of characters sent to the TTS engine
 	// (excludes [PAUSE:N] marker text).
 	CharacterCount int `json:"characterCount"`
@@ -187,8 +207,14 @@ type GenerateStudyGuideOutput struct {
 	// Sections are the structured sections extracted from the script.
 	Sections []StudyGuideSection `json:"sections"`
 	// OutputPath is the absolute path to the generated audio file.
-	// Empty when PreviewOnly is true.
+	// Empty when PreviewOnly is true or while the job is still processing.
 	OutputPath string `json:"outputPath,omitempty"`
+	// JobID identifies the background generation job. Set when PreviewOnly is
+	// false; poll list_jobs / read_audio with it. Empty in preview mode.
+	JobID string `json:"jobId,omitempty"`
+	// Status is the job lifecycle state at return time (e.g. "processing").
+	// Empty in preview mode.
+	Status string `json:"status,omitempty"`
 	// WordCount is the total word count.
 	WordCount int `json:"wordCount"`
 	// DurationEstimate is a human-readable approximation (e.g. "~15 min").
@@ -199,4 +225,77 @@ type GenerateStudyGuideOutput struct {
 	Difficulty string `json:"difficulty"`
 	// PreviewOnly echoes the preview flag.
 	PreviewOnly bool `json:"previewOnly"`
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// list_jobs
+// ──────────────────────────────────────────────────────────────────────────────
+
+// Job is a single asynchronous audio-generation job, as surfaced to the UI.
+type Job struct {
+	// ID is the unique job identifier (pass to read_audio).
+	ID string `json:"id"`
+	// Kind is the originating tool: "podcast", "study_guide", "flashcards",
+	// or "synthesize".
+	Kind string `json:"kind"`
+	// Title is a short human-readable label (topic hint or text snippet).
+	Title string `json:"title"`
+	// Status is the lifecycle state: "queued", "processing", "completed",
+	// or "failed".
+	Status string `json:"status"`
+	// CreatedAt is the RFC3339 creation timestamp.
+	CreatedAt string `json:"createdAt"`
+	// UpdatedAt is the RFC3339 timestamp of the last state change.
+	UpdatedAt string `json:"updatedAt"`
+	// OutputPath is the absolute path to the generated audio file. Set only
+	// when Status is "completed".
+	OutputPath string `json:"outputPath,omitempty"`
+	// DurationEstimate is a human-readable approximation (e.g. "~5 min").
+	DurationEstimate string `json:"durationEstimate,omitempty"`
+	// CharacterCount is the number of characters synthesized, when known.
+	CharacterCount int `json:"characterCount,omitempty"`
+	// WordCount is the script word count, when known.
+	WordCount int `json:"wordCount,omitempty"`
+	// Error is the failure reason. Set only when Status is "failed".
+	Error string `json:"error,omitempty"`
+}
+
+// ListJobsInput is the (empty) input for the list_jobs tool.
+type ListJobsInput struct{}
+
+// ListJobsOutput is the typed output for the list_jobs tool.
+type ListJobsOutput struct {
+	// Kind discriminates the output type for the UI dispatcher.
+	Kind string `json:"kind"`
+	// Jobs is the list of all jobs, newest first.
+	Jobs []Job `json:"jobs"`
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// read_audio
+// ──────────────────────────────────────────────────────────────────────────────
+
+// ReadAudioInput is the typed input for the read_audio tool. Provide either
+// JobID (preferred) or Path; Path is confined to the server's OUTPUT_DIR.
+type ReadAudioInput struct {
+	// JobID is the job whose completed audio to read.
+	JobID string `json:"jobId,omitempty"`
+	// Path is an explicit audio file path under OUTPUT_DIR.
+	Path string `json:"path,omitempty"`
+}
+
+// ReadAudioOutput is the typed output for the read_audio tool.
+type ReadAudioOutput struct {
+	// Kind discriminates the output type for the UI dispatcher.
+	Kind string `json:"kind"`
+	// DataURI is "data:<mime>;base64,<...>" — the UI converts it to a blob:
+	// URL for inline <audio> playback. Empty when Truncated is true.
+	DataURI string `json:"dataUri,omitempty"`
+	// Mime is the audio MIME type (e.g. "audio/mpeg").
+	Mime string `json:"mime,omitempty"`
+	// SizeBytes is the file size on disk.
+	SizeBytes int64 `json:"sizeBytes,omitempty"`
+	// Truncated is true when the file exceeds the inline cap; the UI falls
+	// back to showing the OutputPath rather than shipping a huge payload.
+	Truncated bool `json:"truncated,omitempty"`
 }

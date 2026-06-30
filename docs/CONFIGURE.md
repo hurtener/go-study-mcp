@@ -119,10 +119,44 @@ You should see:
 - `generate_study_guide`
 - `generate_flashcards`
 - `synthesize_speech`
+- `list_jobs` — list audio generation jobs and their status
+- `read_audio` — return a generated file as a data URI for inline playback
 
 Then try:
 
 > "Generate a study guide from this material: [paste your notes]"
+
+Audio generation runs **asynchronously**: the tool returns immediately with a
+job handle, and the audio appears in the studio UI's **Jobs** tab when ready
+(play it inline, or open the saved file). Long content no longer risks a
+tool-call timeout.
+
+## Where audio is saved
+
+The server owns the output directory — callers never choose the path (a
+caller-chosen path is unreliable across hosts: read-only working directories,
+non-existent container mounts). Files are written to, in order of preference:
+
+1. `STUDYAUDIO_OUTPUT_DIR` if set (a relative value is anchored under your home
+   directory, never the host's launch directory),
+2. `~/go-study-mcp` otherwise,
+3. the OS temp directory as a last resort.
+
+Set an explicit location with `STUDYAUDIO_OUTPUT_DIR`:
+
+```json
+{
+  "mcpServers": {
+    "go-study-mcp": {
+      "command": "/path/to/go-study-mcp",
+      "env": {
+        "OPENROUTER_API_KEY": "sk-or-v1-...",
+        "STUDYAUDIO_OUTPUT_DIR": "/Users/you/Music/study-audio"
+      }
+    }
+  }
+}
+```
 
 ## Custom models
 
@@ -154,7 +188,14 @@ Override defaults via environment variables:
 - Ensure `OPENROUTER_API_KEY` is set in the env block of your config
 
 **Timeout on long content**
-- Study guide generation can take 60-90 seconds for long content. This is normal — the LLM is producing a detailed, expert-level guide.
+- Audio generation is asynchronous: the tool returns a job handle immediately
+  and the work continues in the background, so long content no longer blocks the
+  call. Track progress in the studio UI's **Jobs** tab, or ask the assistant to
+  `list_jobs`.
+
+**Can't find the generated audio**
+- Files are saved under `STUDYAUDIO_OUTPUT_DIR` (or `~/go-study-mcp` by default).
+  The Jobs tab shows the exact path for each completed job.
 
 **Audio sounds robotic**
 - The default TTS model is `tts-1`. For best results, use `google/gemini-3.1-flash-tts-preview` which supports expressive voice tags.

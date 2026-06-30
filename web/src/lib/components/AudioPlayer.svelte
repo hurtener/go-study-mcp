@@ -1,15 +1,8 @@
 <script>
+  // AudioPlayer renders a preview result (script / cards / metadata). Audio
+  // playback for completed jobs lives in JobsView, which streams bytes via
+  // the read_audio tool.
   let { result } = $props();
-
-  let audioSrc = $state(null);
-  let isPlaying = $state(false);
-
-  $effect(() => {
-    if (result?.outputPath) {
-      // In a real implementation, this would fetch the audio from the server
-      // For now, we'll show the metadata
-    }
-  });
 
   function formatDuration(estimate) {
     return estimate || 'Unknown';

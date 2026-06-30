@@ -1,18 +1,12 @@
 {
   "type": "object",
   "properties": {
-    "text": {
+    "jobId": {
       "type": "string"
     },
-    "voice": {
-      "type": "string"
-    },
-    "responseFormat": {
+    "path": {
       "type": "string"
     }
   },
-  "required": [
-    "text"
-  ],
   "additionalProperties": false
 }
