@@ -1,18 +1,24 @@
 {
   "type": "object",
   "properties": {
-    "text": {
+    "kind": {
       "type": "string"
     },
-    "voice": {
+    "dataUri": {
       "type": "string"
     },
-    "responseFormat": {
+    "mime": {
       "type": "string"
+    },
+    "sizeBytes": {
+      "type": "integer"
+    },
+    "truncated": {
+      "type": "boolean"
     }
   },
   "required": [
-    "text"
+    "kind"
   ],
   "additionalProperties": false
 }

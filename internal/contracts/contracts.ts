@@ -63,9 +63,19 @@ export interface GeneratePodcastOutput {
   script: string;
   /**
    * OutputPath is the absolute path to the generated audio file.
-   * Empty when PreviewOnly is true.
+   * Empty when PreviewOnly is true or while the job is still processing.
    */
   outputPath?: string;
+  /**
+   * JobID identifies the background generation job. Set when PreviewOnly is
+   * false; poll list_jobs / read_audio with it. Empty in preview mode.
+   */
+  jobId?: string;
+  /**
+   * Status is the job lifecycle state at return time (e.g. "processing").
+   * Empty in preview mode.
+   */
+  status?: string;
   /**
    * WordCount is the number of words in the generated script.
    */
@@ -156,9 +166,19 @@ export interface GenerateFlashcardsOutput {
   cards: FlashCard[];
   /**
    * OutputPath is the absolute path to the generated audio file.
-   * Empty when PreviewOnly is true.
+   * Empty when PreviewOnly is true or while the job is still processing.
    */
   outputPath?: string;
+  /**
+   * JobID identifies the background generation job. Set when PreviewOnly is
+   * false; poll list_jobs / read_audio with it. Empty in preview mode.
+   */
+  jobId?: string;
+  /**
+   * Status is the job lifecycle state at return time (e.g. "processing").
+   * Empty in preview mode.
+   */
+  status?: string;
   /**
    * CardCount is the actual number of cards in the output.
    */
@@ -178,6 +198,9 @@ export interface GenerateFlashcardsOutput {
 }
 /**
  * SynthesizeSpeechInput is the typed input for the synthesize_speech tool.
+ * Note: the destination path is owned by the server (a writable OUTPUT_DIR
+ * resolved at startup), never supplied by the caller — a caller-chosen path
+ * is unreliable across hosts (read-only CWD, non-existent mounts).
  */
 export interface SynthesizeSpeechInput {
   /**
@@ -185,10 +208,6 @@ export interface SynthesizeSpeechInput {
    * for timed silence (N = seconds). Required.
    */
   text: string;
-  /**
-   * OutputPath is the destination file path. Required.
-   */
-  outputPath: string;
   /**
    * Voice is the TTS voice identifier. Optional.
    */
@@ -209,8 +228,18 @@ export interface SynthesizeSpeechOutput {
   kind: string;
   /**
    * OutputPath is the absolute path to the generated audio file.
+   * Empty while the job is still processing.
    */
-  outputPath: string;
+  outputPath?: string;
+  /**
+   * JobID identifies the background synthesis job; poll list_jobs /
+   * read_audio with it.
+   */
+  jobId?: string;
+  /**
+   * Status is the job lifecycle state at return time (e.g. "processing").
+   */
+  status?: string;
   /**
    * CharacterCount is the number of characters sent to the TTS engine
    * (excludes [PAUSE:N] marker text).
@@ -284,9 +313,19 @@ export interface GenerateStudyGuideOutput {
   sections: StudyGuideSection[];
   /**
    * OutputPath is the absolute path to the generated audio file.
-   * Empty when PreviewOnly is true.
+   * Empty when PreviewOnly is true or while the job is still processing.
    */
   outputPath?: string;
+  /**
+   * JobID identifies the background generation job. Set when PreviewOnly is
+   * false; poll list_jobs / read_audio with it. Empty in preview mode.
+   */
+  jobId?: string;
+  /**
+   * Status is the job lifecycle state at return time (e.g. "processing").
+   * Empty in preview mode.
+   */
+  status?: string;
   /**
    * WordCount is the total word count.
    */
@@ -307,4 +346,115 @@ export interface GenerateStudyGuideOutput {
    * PreviewOnly echoes the preview flag.
    */
   previewOnly: boolean;
+}
+/**
+ * Job is a single asynchronous audio-generation job, as surfaced to the UI.
+ */
+export interface Job {
+  /**
+   * ID is the unique job identifier (pass to read_audio).
+   */
+  id: string;
+  /**
+   * Kind is the originating tool: "podcast", "study_guide", "flashcards",
+   * or "synthesize".
+   */
+  kind: string;
+  /**
+   * Title is a short human-readable label (topic hint or text snippet).
+   */
+  title: string;
+  /**
+   * Status is the lifecycle state: "queued", "processing", "completed",
+   * or "failed".
+   */
+  status: string;
+  /**
+   * CreatedAt is the RFC3339 creation timestamp.
+   */
+  createdAt: string;
+  /**
+   * UpdatedAt is the RFC3339 timestamp of the last state change.
+   */
+  updatedAt: string;
+  /**
+   * OutputPath is the absolute path to the generated audio file. Set only
+   * when Status is "completed".
+   */
+  outputPath?: string;
+  /**
+   * DurationEstimate is a human-readable approximation (e.g. "~5 min").
+   */
+  durationEstimate?: string;
+  /**
+   * CharacterCount is the number of characters synthesized, when known.
+   */
+  characterCount?: number /* int */;
+  /**
+   * WordCount is the script word count, when known.
+   */
+  wordCount?: number /* int */;
+  /**
+   * Error is the failure reason. Set only when Status is "failed".
+   */
+  error?: string;
+}
+/**
+ * ListJobsInput is the (empty) input for the list_jobs tool.
+ */
+export interface ListJobsInput {
+}
+/**
+ * ListJobsOutput is the typed output for the list_jobs tool.
+ */
+export interface ListJobsOutput {
+  /**
+   * Kind discriminates the output type for the UI dispatcher.
+   */
+  kind: string;
+  /**
+   * Jobs is the list of all jobs, newest first.
+   */
+  jobs: Job[];
+}
+/**
+ * ReadAudioInput is the typed input for the read_audio tool. Provide either
+ * JobID (preferred) or Path; Path is confined to the server's OUTPUT_DIR.
+ */
+export interface ReadAudioInput {
+  /**
+   * JobID is the job whose completed audio to read.
+   */
+  jobId?: string;
+  /**
+   * Path is an explicit audio file path under OUTPUT_DIR.
+   */
+  path?: string;
+}
+/**
+ * ReadAudioOutput is the typed output for the read_audio tool.
+ */
+export interface ReadAudioOutput {
+  /**
+   * Kind discriminates the output type for the UI dispatcher.
+   */
+  kind: string;
+  /**
+   * DataURI is "data:<mime>;base64,<...>" — the UI converts it to a blob:
+   * URL for inline <audio> playback. Empty when Truncated is true.
+   */
+  dataUri?: string;
+  /**
+   * Mime is the audio MIME type (e.g. "audio/mpeg").
+   */
+  mime?: string;
+  /**
+   * SizeBytes is the file size on disk.
+   */
+  sizeBytes?: number /* int64 */;
+  /**
+   * Truncated is true when the file exceeds the inline cap; the UI falls
+   * back to showing the OutputPath rather than shipping a huge payload.
+   */
+  truncated?: boolean;
 }

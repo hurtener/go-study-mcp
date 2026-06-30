@@ -7,6 +7,12 @@
     "outputPath": {
       "type": "string"
     },
+    "jobId": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
     "characterCount": {
       "type": "integer"
     },
@@ -16,7 +22,6 @@
   },
   "required": [
     "kind",
-    "outputPath",
     "characterCount",
     "durationEstimate"
   ],

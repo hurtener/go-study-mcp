@@ -42,5 +42,19 @@ func registerTools(srv *server.Server) error {
 		return err
 	}
 
+	if err := tool.New[contracts.ListJobsInput, contracts.ListJobsOutput]("list_jobs").
+		Describe("List all audio generation jobs and their status. The UI polls this to render the Jobs tab.").
+		Handler(handlers.ListJobs).
+		Register(srv); err != nil {
+		return err
+	}
+
+	if err := tool.New[contracts.ReadAudioInput, contracts.ReadAudioOutput]("read_audio").
+		Describe("Return a generated audio file as a data URI for inline playback. Reads are confined to the server output directory.").
+		Handler(handlers.ReadAudio).
+		Register(srv); err != nil {
+		return err
+	}
+
 	return nil
 }

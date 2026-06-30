@@ -93,9 +93,11 @@ func TestGenerateFlashcards(t *testing.T) {
 }
 
 func TestSynthesizeSpeech(t *testing.T) {
+	// With a placeholder key (TestMain sets sk-test) TTS is not configured, so
+	// the handler returns a failed status synchronously rather than enqueuing a
+	// job. The character count excludes [PAUSE:N] marker text.
 	in := contracts.SynthesizeSpeechInput{
-		Text:       "Hello world [PAUSE:2] this is a test.",
-		OutputPath: "/tmp/test.mp3",
+		Text: "Hello world [PAUSE:2] this is a test.",
 	}
 	res, err := handlers.SynthesizeSpeech(context.Background(), in)
 	if err != nil {
@@ -103,9 +105,6 @@ func TestSynthesizeSpeech(t *testing.T) {
 	}
 	if res.Structured.Kind != "synthesize" {
 		t.Errorf("Kind = %q, want %q", res.Structured.Kind, "synthesize")
-	}
-	if res.Structured.OutputPath != "/tmp/test.mp3" {
-		t.Errorf("OutputPath = %q, want %q", res.Structured.OutputPath, "/tmp/test.mp3")
 	}
 	if res.Structured.CharacterCount == 0 {
 		t.Error("CharacterCount should be > 0")

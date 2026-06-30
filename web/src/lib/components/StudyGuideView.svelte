@@ -1,5 +1,5 @@
 <script>
-  let { onGenerating } = $props();
+  let { runTool } = $props();
 
   let content = $state('');
   let language = $state('en');
@@ -32,7 +32,13 @@
   async function handleSubmit(e) {
     e.preventDefault();
     if (!content.trim()) return;
-    onGenerating();
+    await runTool('generate_study_guide', {
+      content,
+      language,
+      difficulty,
+      durationTarget,
+      previewOnly,
+    });
   }
 </script>
 
