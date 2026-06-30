@@ -418,6 +418,53 @@ export interface ListJobsOutput {
   jobs: Job[];
 }
 /**
+ * Voice is a single TTS voice option for the active provider.
+ */
+export interface Voice {
+  /**
+   * ID is the voice identifier passed to the TTS engine.
+   */
+  id: string;
+  /**
+   * Label is the human-readable display name.
+   */
+  label: string;
+  /**
+   * Description is a short characteristic (e.g. "Warm", "Clear").
+   */
+  description?: string;
+}
+/**
+ * ListVoicesInput is the (empty) input for the list_voices tool.
+ */
+export interface ListVoicesInput {
+}
+/**
+ * ListVoicesOutput is the typed output for the list_voices tool.
+ */
+export interface ListVoicesOutput {
+  /**
+   * Kind discriminates the output type for the UI dispatcher.
+   */
+  kind: string;
+  /**
+   * Provider is the active TTS provider ("gemini" or "openai").
+   */
+  provider: string;
+  /**
+   * Model is the configured TTS model id.
+   */
+  model: string;
+  /**
+   * DefaultVoice is the voice used when none is specified.
+   */
+  defaultVoice: string;
+  /**
+   * Voices are the voices the active provider can speak.
+   */
+  voices: Voice[];
+}
+/**
  * ReadAudioInput is the typed input for the read_audio tool. Provide either
  * JobID (preferred) or Path; Path is confined to the server's OUTPUT_DIR.
  */

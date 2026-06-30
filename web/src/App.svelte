@@ -150,7 +150,7 @@
         {:else if activeTab === 'flashcards'}
           <FlashcardView {runTool} />
         {:else if activeTab === 'synthesize'}
-          <SynthesizeView {runTool} />
+          <SynthesizeView {runTool} {bridge} />
         {:else if activeTab === 'jobs'}
           <JobsView {bridge} />
         {/if}

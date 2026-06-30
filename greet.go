@@ -56,5 +56,12 @@ func registerTools(srv *server.Server) error {
 		return err
 	}
 
+	if err := tool.New[contracts.ListVoicesInput, contracts.ListVoicesOutput]("list_voices").
+		Describe("List the TTS voices available for the active provider, with the default. The UI populates its voice picker from this.").
+		Handler(handlers.ListVoices).
+		Register(srv); err != nil {
+		return err
+	}
+
 	return nil
 }

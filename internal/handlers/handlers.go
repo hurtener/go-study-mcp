@@ -988,16 +988,3 @@ func maxInputChars() int {
 	}
 	return 1500
 }
-
-func voiceID(voice string) string {
-	if voice != "" {
-		return voice
-	}
-	if v := os.Getenv("STUDYAUDIO_DEFAULT_VOICE"); v != "" {
-		return v
-	}
-	if v := os.Getenv("TTS_VOICE"); v != "" {
-		return v
-	}
-	return "Erinome"
-}

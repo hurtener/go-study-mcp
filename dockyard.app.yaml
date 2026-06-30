@@ -1,7 +1,7 @@
 # Dockyard manifest — the control plane for this MCP server (RFC §4.2).
 name: go-study-mcp
 title: Go Study MCP
-version: 0.3.0
+version: 0.4.0
 
 runtime:
   transports: [stdio]
@@ -55,6 +55,12 @@ tools:
     description: Return a generated audio file as a data URI for inline playback. Reads are confined to the server output directory.
     input: internal/contracts.ReadAudioInput
     output: internal/contracts.ReadAudioOutput
+    task_support: forbidden
+
+  - name: list_voices
+    description: List the TTS voices available for the active provider, with the default. The UI populates its voice picker from this.
+    input: internal/contracts.ListVoicesInput
+    output: internal/contracts.ListVoicesOutput
     task_support: forbidden
 
 quality:
