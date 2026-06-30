@@ -272,6 +272,37 @@ type ListJobsOutput struct {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
+// list_voices
+// ──────────────────────────────────────────────────────────────────────────────
+
+// Voice is a single TTS voice option for the active provider.
+type Voice struct {
+	// ID is the voice identifier passed to the TTS engine.
+	ID string `json:"id"`
+	// Label is the human-readable display name.
+	Label string `json:"label"`
+	// Description is a short characteristic (e.g. "Warm", "Clear").
+	Description string `json:"description,omitempty"`
+}
+
+// ListVoicesInput is the (empty) input for the list_voices tool.
+type ListVoicesInput struct{}
+
+// ListVoicesOutput is the typed output for the list_voices tool.
+type ListVoicesOutput struct {
+	// Kind discriminates the output type for the UI dispatcher.
+	Kind string `json:"kind"`
+	// Provider is the active TTS provider ("gemini" or "openai").
+	Provider string `json:"provider"`
+	// Model is the configured TTS model id.
+	Model string `json:"model"`
+	// DefaultVoice is the voice used when none is specified.
+	DefaultVoice string `json:"defaultVoice"`
+	// Voices are the voices the active provider can speak.
+	Voices []Voice `json:"voices"`
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 // read_audio
 // ──────────────────────────────────────────────────────────────────────────────
 

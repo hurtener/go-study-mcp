@@ -38,7 +38,7 @@ func main() {
 	srv, err := server.New(server.Info{
 		Name:    "go-study-mcp",
 		Title:   "Go Study MCP",
-		Version: "0.3.0",
+		Version: "0.4.0",
 	}, &server.Options{Logger: logger})
 	if err != nil {
 		logger.Error("create server", slog.String("error", err.Error()))

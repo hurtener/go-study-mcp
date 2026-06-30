@@ -1,18 +1,36 @@
 <script>
-  let { runTool } = $props();
+  import { onMount } from 'svelte';
+
+  let { runTool, bridge } = $props();
 
   let text = $state('');
-  let voice = $state('alloy');
   let format = $state('mp3');
 
-  const voices = [
-    { id: 'alloy', label: 'Alloy', desc: 'Neutral, balanced' },
-    { id: 'echo', label: 'Echo', desc: 'Clear, articulate' },
-    { id: 'fable', label: 'Fable', desc: 'Warm, expressive' },
-    { id: 'onyx', label: 'Onyx', desc: 'Deep, authoritative' },
-    { id: 'nova', label: 'Nova', desc: 'Friendly, upbeat' },
-    { id: 'shimmer', label: 'Shimmer', desc: 'Soft, gentle' },
-  ];
+  // Voices are loaded from the server's list_voices so the picker always
+  // matches the active TTS provider (Gemini vs OpenAI). Fall back to a small
+  // Gemini set if the call fails (Gemini is the default provider).
+  let voices = $state([
+    { id: 'Erinome', label: 'Erinome', desc: 'Clear' },
+    { id: 'Puck', label: 'Puck', desc: 'Upbeat' },
+    { id: 'Kore', label: 'Kore', desc: 'Firm' },
+    { id: 'Aoede', label: 'Aoede', desc: 'Breezy' },
+  ]);
+  let voice = $state('Erinome');
+  let provider = $state('');
+
+  onMount(async () => {
+    try {
+      const res = await bridge.callTool('list_voices', {});
+      const out = res?.structuredContent;
+      if (out?.voices?.length) {
+        voices = out.voices.map((v) => ({ id: v.id, label: v.label, desc: v.description }));
+        voice = out.defaultVoice || voices[0].id;
+        provider = out.provider || '';
+      }
+    } catch {
+      /* keep the fallback list */
+    }
+  });
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -42,20 +60,12 @@
 
   <div class="row">
     <div class="field">
-      <label for="syn-voice">Voice</label>
-      <div class="voice-grid">
+      <label for="syn-voice">Voice{#if provider}<span class="provider">· {provider}</span>{/if}</label>
+      <select id="syn-voice" class="voice-select" bind:value={voice}>
         {#each voices as v}
-          <button
-            type="button"
-            class="voice-btn"
-            class:active={voice === v.id}
-            onclick={() => voice = v.id}
-          >
-            <span class="voice-name">{v.label}</span>
-            <span class="voice-desc">{v.desc}</span>
-          </button>
+          <option value={v.id}>{v.label}{v.desc ? ` — ${v.desc}` : ''}</option>
         {/each}
-      </div>
+      </select>
     </div>
 
     <div class="field">
@@ -154,42 +164,29 @@
     }
   }
 
-  .voice-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
+  .provider {
+    margin-left: 6px;
+    font-weight: 500;
+    color: #8b7355;
+    text-transform: none;
+    letter-spacing: 0;
   }
 
-  .voice-btn {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 10px 6px;
+  .voice-select {
+    padding: 11px 12px;
     border: 1px solid #e8e5e0;
     border-radius: 10px;
     background: #fff;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .voice-btn:hover {
-    border-color: #d0cbc3;
-  }
-
-  .voice-btn.active {
-    border-color: #8b7355;
-    background: #f9f5ee;
-  }
-
-  .voice-name {
-    font-size: 13px;
-    font-weight: 600;
+    font-size: 14px;
+    font-family: inherit;
     color: #2d2d2d;
+    cursor: pointer;
   }
 
-  .voice-desc {
-    font-size: 10px;
-    color: #8a8a8a;
+  .voice-select:focus {
+    outline: none;
+    border-color: #8b7355;
+    box-shadow: 0 0 0 3px rgba(139, 115, 85, 0.1);
   }
 
   .format-toggle {
