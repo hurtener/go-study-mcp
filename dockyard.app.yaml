@@ -1,7 +1,7 @@
 # Dockyard manifest — the control plane for this MCP server (RFC §4.2).
 name: go-study-mcp
 title: Go Study MCP
-version: 0.4.0
+version: 0.4.1
 
 runtime:
   transports: [stdio]

@@ -19,9 +19,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	bifrost "github.com/maximhq/bifrost/core"
@@ -35,11 +37,17 @@ import (
 	"github.com/hurtener/go-study-mcp/internal/prompts"
 )
 
-// bifrostClient is the shared Bifrost instance.
-var bifrostClient *bifrost.Bifrost
+// bifrostClient is the shared Bifrost instance, created lazily via
+// ensureBifrost so a transient startup failure (e.g. a network blip when the
+// host spawns us) does not permanently disable TTS — it is retried on demand.
+var (
+	bifrostClient *bifrost.Bifrost
+	bifrostMu     sync.Mutex
+)
 
-// SkipLLM is a test flag that skips actual LLM calls.
-var SkipLLM bool
+// logger writes diagnostics to stderr, which the MCP host captures in its
+// per-server log — so a real init failure is visible instead of swallowed.
+var logger = slog.New(slog.NewTextHandler(os.Stderr, nil))
 
 // Registry holds the asynchronous generation jobs surfaced via list_jobs.
 var Registry = jobs.NewRegistry()
@@ -56,24 +64,55 @@ const maxReadBytes = 25 << 20
 func init() {
 	outputDir = resolveOutputDir()
 
-	// Check if we have any API key before trying to init Bifrost
-	apiKey := os.Getenv("OPENROUTER_API_KEY")
-	if apiKey == "" {
-		apiKey = os.Getenv("OPENAI_API_KEY")
-	}
-	if apiKey == "" || apiKey == "sk-test" || apiKey == "sk-placeholder" {
-		SkipLLM = true
-		return
+	// Defensive: a host may launch us with a read-only working directory.
+	// Anchor the CWD to the writable output dir so any dependency that writes
+	// relative to CWD (and the init work it does) doesn't fail.
+	if err := os.Chdir(outputDir); err != nil {
+		logger.Warn("could not chdir to output dir", slog.String("dir", outputDir), slog.String("error", err.Error()))
 	}
 
+	// Attempt to initialize the client eagerly, but never latch on failure —
+	// ensureBifrost retries on first use and logs the real error.
+	if _, err := ensureBifrost(); err != nil {
+		logger.Warn("TTS/LLM client not ready at startup; will retry on first use", slog.String("error", err.Error()))
+	}
+}
+
+// apiKey returns the configured key, treating placeholders as absent.
+func apiKey() (string, bool) {
+	key := os.Getenv("OPENROUTER_API_KEY")
+	if key == "" {
+		key = os.Getenv("OPENAI_API_KEY")
+	}
+	if key == "" || key == "sk-test" || key == "sk-placeholder" {
+		return "", false
+	}
+	return key, true
+}
+
+// ensureBifrost returns the shared client, creating it on first use. It never
+// caches a failure: if init fails (no key, or a transient error) a later call
+// retries. The error is returned and logged so it is diagnosable in the host's
+// server log rather than silently swallowed.
+func ensureBifrost() (*bifrost.Bifrost, error) {
+	bifrostMu.Lock()
+	defer bifrostMu.Unlock()
+	if bifrostClient != nil {
+		return bifrostClient, nil
+	}
+	if _, ok := apiKey(); !ok {
+		return nil, fmt.Errorf("no API key set (OPENROUTER_API_KEY or OPENAI_API_KEY)")
+	}
 	client, err := bifrost.Init(context.Background(), schemas.BifrostConfig{
 		Account: &OpenRouterAccount{},
 	})
 	if err != nil {
-		SkipLLM = true
-		return
+		logger.Error("bifrost init failed", slog.String("error", err.Error()))
+		return nil, fmt.Errorf("bifrost init: %w", err)
 	}
 	bifrostClient = client
+	logger.Info("TTS/LLM client initialized")
+	return client, nil
 }
 
 // OpenRouterAccount implements the Bifrost Account interface for OpenRouter.
@@ -85,16 +124,12 @@ func (a *OpenRouterAccount) GetConfiguredProviders() ([]schemas.ModelProvider, e
 
 func (a *OpenRouterAccount) GetKeysForProvider(ctx context.Context, provider schemas.ModelProvider) ([]schemas.Key, error) {
 	if provider == schemas.OpenAI {
-		apiKey := os.Getenv("OPENROUTER_API_KEY")
-		if apiKey == "" {
-			apiKey = os.Getenv("OPENAI_API_KEY")
-		}
-		if apiKey == "" {
-			SkipLLM = true
+		key, ok := apiKey()
+		if !ok {
 			return nil, fmt.Errorf("no API key found: set OPENROUTER_API_KEY or OPENAI_API_KEY")
 		}
 		return []schemas.Key{{
-			Value:  *schemas.NewEnvVar(apiKey),
+			Value:  *schemas.NewEnvVar(key),
 			Models: schemas.WhiteList{"*"},
 			Weight: 1.0,
 		}}, nil
@@ -253,7 +288,7 @@ func flashcards(in contracts.GenerateFlashcardsInput, lang string) ([]contracts.
 		Content:    in.Content,
 	})
 
-	if SkipLLM || bifrostClient == nil {
+	if notConfigured() {
 		return []contracts.FlashCard{}, nil
 	}
 
@@ -511,8 +546,13 @@ func ttsNotConfigured[T any](kind string, structured T) (tool.Result[T], error) 
 	}, nil
 }
 
-// notConfigured reports whether the LLM/TTS client is unavailable.
-func notConfigured() bool { return bifrostClient == nil || SkipLLM }
+// notConfigured reports whether the LLM/TTS client is unavailable. It attempts
+// (lazy, retrying) initialization, so a client that failed to start at launch
+// can recover on the first tool call.
+func notConfigured() bool {
+	_, err := ensureBifrost()
+	return err != nil
+}
 
 // ──────────────────────────────────────────────────────────────────────────────
 // LLM + TTS
@@ -521,10 +561,12 @@ func notConfigured() bool { return bifrostClient == nil || SkipLLM }
 // chatComplete runs a single chat completion, or returns a deterministic
 // stand-in when no LLM is configured (so preview/test paths stay usable).
 func chatComplete(system, user string) (string, error) {
-	if SkipLLM || bifrostClient == nil {
+	client, err := ensureBifrost()
+	if err != nil {
+		// No LLM configured — deterministic stub keeps preview/tests usable.
 		return fmt.Sprintf("[SYSTEM]\n%s\n\n[USER]\n%s", system, user), nil
 	}
-	response, bfErr := bifrostClient.ChatCompletionRequest(
+	response, bfErr := client.ChatCompletionRequest(
 		schemas.NewBifrostContext(context.Background(), schemas.NoDeadline),
 		&schemas.BifrostChatRequest{
 			Provider: schemas.OpenAI,
@@ -554,8 +596,9 @@ func chatComplete(system, user string) (string, error) {
 // respect the TTS request-size limit (Gemini flash TTS caps input length).
 // It returns the audio bytes and their file extension.
 func synthesize(text, voice, format string) ([]byte, string, error) {
-	if bifrostClient == nil {
-		return nil, "", fmt.Errorf("tts client not initialized")
+	client, err := ensureBifrost()
+	if err != nil {
+		return nil, "", fmt.Errorf("tts client not initialized: %w", err)
 	}
 
 	clean := removePauseMarkers(text)
@@ -577,7 +620,7 @@ func synthesize(text, voice, format string) ([]byte, string, error) {
 		if strings.TrimSpace(chunk) == "" {
 			continue
 		}
-		response, bfErr := bifrostClient.SpeechRequest(
+		response, bfErr := client.SpeechRequest(
 			schemas.NewBifrostContext(context.Background(), schemas.NoDeadline),
 			&schemas.BifrostSpeechRequest{
 				Provider: schemas.OpenAI,
