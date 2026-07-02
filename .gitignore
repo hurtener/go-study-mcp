@@ -4,6 +4,9 @@
 /web/dist/
 /go-study-mcp
 
+# Runtime-generated audio (default output dir)
+/output/
+
 # Go test artifacts
 *.test
 coverage.out
